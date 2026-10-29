@@ -16,6 +16,13 @@ def test_render_formats_and_leaves_text_alone():
     assert out == "S = 0.41, supported: True."
 
 
+def test_include_renders_the_included_file(tmp_path):
+    part = tmp_path / "part.md"
+    part.write_text("J = {{j:.1f}}", encoding="utf-8")
+    # An absolute path stays absolute under ROOT / path.
+    assert render("A {{include:" + str(part) + "}} B", {"j": 0.42}) == "A J = 0.4 B"
+
+
 def test_render_fails_loudly_on_unknown_key():
     with pytest.raises(KeyError):
         render("{{missing.key}}", {})

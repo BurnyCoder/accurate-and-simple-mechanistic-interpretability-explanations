@@ -73,7 +73,8 @@ def main() -> None:
     parser.add_argument("--phase", choices=["download", "negatives", "score", "all", "reliability", "analyze"], required=True)
     parser.add_argument("--sample", choices=["pilot", "main"], default="pilot")
     args = parser.parse_args()
-    setup_logging(f"{args.phase}_{args.sample}")
+    # The reliability phase always uses the main sample, so its log is not tagged with --sample.
+    setup_logging("reliability" if args.phase == "reliability" else f"{args.phase}_{args.sample}")
     if args.phase in ("download", "all"):
         logging.info("download: %s", prepare())
     if args.phase in ("negatives", "all"):

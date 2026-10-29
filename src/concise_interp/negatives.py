@@ -16,9 +16,6 @@ import random
 
 import numpy as np
 import torch
-from datasets import load_dataset
-from sae_lens import SAE
-from transformer_lens import HookedTransformer
 
 from . import config
 
@@ -37,6 +34,9 @@ def from_neuronpedia_tokens(tokenizer, tokens: list[str]) -> list[int]:
 
 
 def load_model_and_sae():
+    from sae_lens import SAE  # heavy imports only in the phase that runs the model
+    from transformer_lens import HookedTransformer
+
     # sae_lens pretrained SAE; its metadata names the TransformerLens model, hook and the
     # model kwargs it was trained with (https://jbloomaus.github.io/SAELens/).
     sae = SAE.from_pretrained(config.SAE_RELEASE, config.SAE_ID, device=config.DEVICE)
@@ -89,6 +89,8 @@ def check_reproduces_neuronpedia(model, sae, latents_data: dict, n_rows: int = 5
 @torch.no_grad()
 def build_negatives(latents_data: dict) -> dict:
     """Phase `negatives`: random OpenWebText windows, SAE activations, 25 zero windows per latent."""
+    from datasets import load_dataset
+
     model, sae = load_model_and_sae()
     report = {"token_format_roundtrip": check_token_format(model, latents_data),
               "reproduce_neuronpedia": check_reproduces_neuronpedia(model, sae, latents_data)}
@@ -130,7 +132,16 @@ def build_negatives(latents_data: dict) -> dict:
     return report
 
 
-def load_negatives() -> tuple[list[list[str]], dict[int, list[int]]]:
+def _load() -> dict:
     with gzip.open(config.PROCESSED_DIR / "negatives.json.gz", "rt", encoding="utf-8") as f:
-        d = json.load(f)
+        return json.load(f)
+
+
+def load_negatives() -> tuple[list[list[str]], dict[int, list[int]]]:
+    d = _load()
     return d["windows"], {int(k): v for k, v in d["zero_windows"].items()}
+
+
+def load_report() -> dict:
+    """The SAE/format validation and pool statistics recorded when the pool was built."""
+    return _load()["report"]

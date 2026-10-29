@@ -121,7 +121,12 @@ def h3(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS) -> dict:
     tests = {(b, e): paired(s, f"gen_b{b}", f"gen_b{e}") for b in (5, 10, 20) for e in (2, 40)}
     adjusted = dict(zip(tests, holm([t["p_greater"] for t in tests.values()])))
     winners = [b for b in (5, 10, 20) if adjusted[(b, 2)] < 0.05 and adjusted[(b, 40)] < 0.05]
-    return {"s_by_budget": {c: mean_ci(s[c].dropna()) for c in BUDGET_CONDITIONS + ["gen_unconstrained"]},
+    # Why S falls from ~2 to ~10 words: ratio of mean J vs ratio of the length factor at median L.
+    med = df.groupby("condition").n_tokens.median()
+    j_mean = wide(df, "j").mean()
+    illustration = {"j_ratio_b10_over_b2": float(j_mean["gen_b10"] / j_mean["gen_b2"]),
+                    "factor_ratio_b10_over_b2": 2 ** (-(med["gen_b10"] - med["gen_b2"]) / half_life)}
+    return {"illustration": illustration,"s_by_budget": {c: mean_ci(s[c].dropna()) for c in BUDGET_CONDITIONS + ["gen_unconstrained"]},
             "tests": {f"b{b}_vs_b{e}": {**t, "p_holm": adjusted[(b, e)]} for (b, e), t in tests.items()},
             "intermediate_budgets_beating_both_endpoints": winners, "supported": bool(winners)}
 
@@ -174,7 +179,8 @@ def h4(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS) -> dict:
            "picked_counts": {r: pd.Series(sum(sel[sel.rule == r].picked, [])).value_counts().to_dict()
                              for r in ("argmax_j", "argmax_s", "argmin_l")}}
     ratio = out["median_tokens"]["argmax_s"] / out["median_tokens"]["argmax_j"]
-    out["length_ratio_S_over_J"] = ratio
+    out["length_ratio_S_over_J"], out["length_reduction"] = ratio, 1 - ratio
+    out["n_selections"] = 2 * int(sel.latent.nunique())  # two cross-fit directions per latent
     out["supported"] = bool(ratio <= 0.8 and out["j_loss_argmaxJ_minus_argmaxS"]["mean"] <= 0.05
                             and out["argmaxS_minus_argminL"]["lo"] > 0)
     return out
@@ -189,7 +195,9 @@ def exploratory(df: pd.DataFrame) -> dict:
         sh = wide(df.assign(s=with_half_life(df, h)), "s")
         means = {c: float(sh[c].mean()) for c in sh.columns}
         best_budget = max(BUDGET_CONDITIONS, key=lambda c: means.get(c, -1))
-        sweep["inf" if math.isinf(h) else str(int(h))] = {"mean_s": means, "best_budget": best_budget}
+        # Post-hoc (not pre-registered): is the best budget better than both endpoints at this H?
+        tests = {f"best_minus_{e}": paired(sh, best_budget, e) for e in ("gen_b2", "gen_b40") if e != best_budget}
+        sweep["inf" if math.isinf(h) else str(int(h))] = {"mean_s": means, "best_budget": best_budget, "tests": tests}
     # Length unit robustness: re-express H in words/chars with the mean words-per-token ratio.
     w_per_t = df.n_words.sum() / df.n_tokens.sum()
     c_per_t = df.n_chars.sum() / df.n_tokens.sum()
@@ -206,6 +214,7 @@ def exploratory(df: pd.DataFrame) -> dict:
             "tokens_vs_chars": float(stats.spearmanr(df.s[valid], np.array(s_chars)[valid]).statistic),
             "words_per_token": float(w_per_t), "chars_per_token": float(c_per_t)},
         "spearman_j_vs_tokens_all": float(stats.spearmanr(df.j[valid], df.n_tokens[valid]).statistic),
+        "n_humans": int(df.condition.str.startswith("human").sum()),
         "humans": df[df.condition.str.startswith("human")][["latent", "condition", "explanation", "j", "n_tokens", "s"]].to_dict("records"),
     }
 
@@ -240,21 +249,56 @@ def export_explorer_data(df: pd.DataFrame, path: Path) -> None:
     path.write_text(json.dumps({"half_life_default": config.HALF_LIFE_TOKENS, "latents": latents}))
 
 
+def api_usage(log_glob: str) -> dict:
+    """OpenRouter calls and cost summed from the META lines of the run logs (logs/ is local;
+    the totals are written into numbers.json so a fresh clone still has them)."""
+    calls, cost, tokens = 0, 0.0, 0
+    for path in sorted(config.LOG_DIR.glob(log_glob)):
+        for line in path.open(encoding="utf-8"):
+            if " META [" in line and "usage=" in line:
+                usage = json.loads(line.split("usage=", 1)[1])
+                calls, cost, tokens = calls + 1, cost + usage.get("cost", 0.0), tokens + usage.get("total_tokens", 0)
+    return {"calls": calls, "cost_usd": cost, "total_tokens": tokens}
+
+
+def neuronpedia_zero_rows() -> dict:
+    """Diversity of Neuronpedia's zero-activation rows for the sampled latents (why PREREG
+    deviation 2 replaced them): total rows vs distinct texts."""
+    from .data import load_processed
+
+    latents, _ = load_processed()
+    texts = ["".join(r["tokens"]) for d in latents.values() for r in d["rows"] if r["maxValue"] == 0]
+    return {"n_latents": len(latents), "rows": len(texts), "distinct_texts": len(set(texts))}
+
+
+def data_summary() -> dict:
+    samples = json.loads((config.PROCESSED_DIR / "samples.json").read_text())
+    from .negatives import load_report  # avoid importing torch/sae_lens just for analysis
+    return {"n_latents_total": samples["n_latents"], "n_eligible": samples["n_eligible"],
+            "eligible_pct": 100 * samples["n_eligible"] / samples["n_latents"], "negatives": load_report(),
+            "neuronpedia_zero_rows": neuronpedia_zero_rows()}
+
+
 def run_analysis(sample: str = "main") -> dict:
     out_dir = config.RESULTS_DIR / sample
     df = load_scores(out_dir / "scores.jsonl")
     numbers = {
+        "data": data_summary(),
+        "api_usage": {"score": api_usage(f"*score_{sample}.log"), "reliability": api_usage("*_reliability.log")},
         "n_latents": int(df.latent.nunique()), "n_explanations": int(len(df)),
         "sample_failure_rate": float(df.n_failed.sum() / (df.n_failed.sum() + df.n_valid.sum())),
         "flagged_explanations": int((df.n_failed > 0.2 * (df.n_failed + df.n_valid)).sum()),
         "half_life": config.HALF_LIFE_TOKENS,
         "conditions": condition_table(df).to_dict("records"),
+        "by_condition": condition_table(df).set_index("condition").to_dict("index"),  # for templates
         "H1": h1(df), "H2": h2(df), "H3": h3(df), "H4": h4(df), "exploratory": exploratory(df),
     }
     for name in ("retest", "altscorer"):
         path = out_dir / f"scores_{name}.jsonl"
         if path.exists():
             numbers[f"reliability_{name}"] = reliability(df, load_scores(path))
+    rel = [numbers[k][f"spearman_{c}"] for k in ("reliability_retest", "reliability_altscorer") if k in numbers for c in "js"]
+    numbers["reliability_min_spearman"] = min(rel) if rel else None
     (out_dir / "numbers.json").write_text(json.dumps(numbers, indent=1, default=float))
     export_explorer_data(df, (config.ROOT / "docs" if sample == "main" else out_dir) / "data.json")
     log.info("analysis written to %s", out_dir / "numbers.json")

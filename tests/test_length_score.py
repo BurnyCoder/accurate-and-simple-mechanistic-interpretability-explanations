@@ -66,3 +66,5 @@ def test_length_units():
     assert n_tokens(text) == n_tokens(text.strip())
     assert 3 <= n_tokens(text) <= 6
     assert n_tokens("") == 0
+    # GPT-2 latents often fire on the document separator; explanations may quote it.
+    assert n_tokens('the token "<|endoftext|>"') > 3
