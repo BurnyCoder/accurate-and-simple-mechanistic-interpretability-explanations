@@ -1,5 +1,4 @@
 ---
-license: cc-by-4.0
 language:
 - en
 pretty_name: Length-penalized detection scores for GPT-2 small SAE feature explanations
@@ -53,6 +52,8 @@ The project's new score multiplies the above-chance detection score by a length 
 See the repository README and paper for the full write-up.
 
 ## Sources and licenses
+
+This dataset mixes material under its sources' own terms; no single license is asserted.
 
 - Explanations and activations come from [Neuronpedia's public exports](https://neuronpedia-datasets.s3.us-east-1.amazonaws.com/index.html).
 - Negatives are windows of [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext) (CC0).

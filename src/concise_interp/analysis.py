@@ -126,7 +126,7 @@ def h3(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS) -> dict:
     j_mean = wide(df, "j").mean()
     illustration = {"j_ratio_b10_over_b2": float(j_mean["gen_b10"] / j_mean["gen_b2"]),
                     "factor_ratio_b10_over_b2": 2 ** (-(med["gen_b10"] - med["gen_b2"]) / half_life)}
-    return {"illustration": illustration,"s_by_budget": {c: mean_ci(s[c].dropna()) for c in BUDGET_CONDITIONS + ["gen_unconstrained"]},
+    return {"illustration": illustration, "s_by_budget": {c: mean_ci(s[c].dropna()) for c in BUDGET_CONDITIONS + ["gen_unconstrained"]},
             "tests": {f"b{b}_vs_b{e}": {**t, "p_holm": adjusted[(b, e)]} for (b, e), t in tests.items()},
             "intermediate_budgets_beating_both_endpoints": winners, "supported": bool(winners)}
 
@@ -146,6 +146,12 @@ def crossfit_halves(df: pd.DataFrame, seed: int = config.SEED_ANALYSIS) -> dict[
     return halves
 
 
+def _rankable(x: float) -> float:
+    """A half where every prediction failed has J = NaN; rank it last instead of letting NaN
+    comparisons make max()/min() depend on candidate order."""
+    return -math.inf if math.isnan(x) else x
+
+
 def crossfit_selection(df: pd.DataFrame, halves: dict, half_life: float) -> pd.DataFrame:
     """Select a candidate per latent on one half, evaluate its J on the other, both ways.
     Rules: argmax J, argmax S, argmin L. Ties go to the shorter explanation."""
@@ -155,9 +161,9 @@ def crossfit_selection(df: pd.DataFrame, halves: dict, half_life: float) -> pd.D
         evaluations = {rule: [] for rule in ("argmax_j", "argmax_s", "argmin_l")}
         for select_ids, eval_ids in (halves[latent], halves[latent][::-1]):
             sel = [explanation_metrics(r, half_life, select_ids) | {"r": r} for r in rows]
-            picks = {"argmax_j": max(sel, key=lambda m: (m["j"], -m["n_tokens"])),
-                     "argmax_s": max(sel, key=lambda m: (m["s"], -m["n_tokens"])),
-                     "argmin_l": min(sel, key=lambda m: (m["n_tokens"], -m["j"]))}
+            picks = {"argmax_j": max(sel, key=lambda m: (_rankable(m["j"]), -m["n_tokens"])),
+                     "argmax_s": max(sel, key=lambda m: (_rankable(m["s"]), -m["n_tokens"])),
+                     "argmin_l": min(sel, key=lambda m: (m["n_tokens"], -_rankable(m["j"])))}
             for rule, pick in picks.items():
                 evaluated = explanation_metrics(pick["r"], half_life, eval_ids)
                 evaluations[rule].append((evaluated["j"], pick["n_tokens"], pick["r"]["condition"]))

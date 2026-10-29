@@ -5,7 +5,7 @@
 set -euo pipefail
 
 REPO="BurnyCoder/length-penalized-autointerp-gpt2-small"
-COLLECTION_TITLE="Accurate and simple mechanistic-interpretability explanations"
+COLLECTION_TITLE="Accurate and simple interpretability explanations"  # HF limit: 60 chars
 
 hf repos create "$REPO" --type dataset --exist-ok
 hf upload "$REPO" hf/README.md README.md --type dataset --commit-message "Dataset card"
