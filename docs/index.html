@@ -60,14 +60,14 @@
   </p>
 
   <div class="controls">
-    <label>Half-life H <input id="h" type="range" min="0" max="6" step="1" value="3"> <b id="hval"></b></label>
+    <label>Half-life H <input id="h" type="range" min="0" max="6" step="1" value="2"> <b id="hval"></b></label>
     <label>Latent <select id="latent"></select></label>
     <label><input id="search" type="search" placeholder="search explanations"></label>
   </div>
 
   <h2>Mean score per explanation source</h2>
   <div class="table-wrap"><table id="summary"></table></div>
-  <p class="note">Means over all latents in the main sample. H = ∞ is plain detection scoring. Bars are scaled to the column maximum.</p>
+  <p class="note">Means over all latents in the main sample. H = ∞ removes the length factor (S = max(J, 0)). Bars are scaled to the column maximum.</p>
 
   <h2>Explanations for one latent</h2>
   <p class="note" id="latent-link"></p>
@@ -75,7 +75,7 @@
   <p class="note">The highlighted row is the explanation with the highest S at the current H.</p>
 </main>
 <script>
-// Half-life options for the slider; Infinity = no length factor (plain J).
+// Half-life options for the slider (index 2 = the pre-registered H = 20); Infinity = no length factor.
 const H_OPTIONS = [5, 10, 20, 30, 40, 80, Infinity];
 const LABELS = {gpt35: "gpt-3.5-turbo (Neuronpedia)", gpt4omini: "gpt-4o-mini (Neuronpedia)",
   top_token: "top-token baseline", random: "random control", gen_unconstrained: "Llama-70B unconstrained"};
@@ -90,7 +90,7 @@ fetch("data.json").then(r => r.json()).then(data => {
   el("latent").innerHTML = latents.map(l => `<option value="${l.latent}">${l.latent}</option>`).join("");
   const render = () => {
     const h = H_OPTIONS[+el("h").value];
-    el("hval").textContent = h === Infinity ? "∞ (plain J)" : `${h} tokens`;
+    el("hval").textContent = h === Infinity ? "∞ (no length factor)" : `${h} tokens`;
     // Summary: mean J, median tokens, mean S per condition.
     const by = {};
     latents.forEach(l => l.explanations.forEach(e => {
