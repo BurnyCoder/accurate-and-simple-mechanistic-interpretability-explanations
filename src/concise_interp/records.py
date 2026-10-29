@@ -22,21 +22,21 @@ from . import config
 class Split(NamedTuple):
     train: list[dict]  # top-N_TRAIN activating rows, highest first
     test_pos: list[tuple[int, dict]]  # (quantile bin, row); bin 0 = highest activations
-    test_neg: list[dict]  # rows with maxValue == 0
+    test_neg: list[dict]  # verified zero-activation random windows (negatives.py)
 
 
-def split_examples(rows: list[dict], rng: random.Random) -> Split:
+def split_examples(rows: list[dict], negative_windows: list[list[str]], rng: random.Random) -> Split:
     """Top-20 to train, 5 positives from each of 5 equal-count quantile bins of the rest,
-    and 25 zero-activation rows as negatives."""
+    and 25 negatives drawn from random windows on which this latent is exactly 0."""
     # Stable sort keeps export order among ties, so the split is deterministic.
     activating = sorted((r for r in rows if r["maxValue"] > 0), key=lambda r: -r["maxValue"])
-    zeros = [r for r in rows if r["maxValue"] == 0]
     train, rest = activating[: config.N_TRAIN], activating[config.N_TRAIN :]
     per_bin = config.N_TEST_POS // config.N_QUANTILE_BINS
     # np.array_split on indices gives equal-count bins in descending-activation order.
     bins = np.array_split(np.arange(len(rest)), config.N_QUANTILE_BINS)
     test_pos = [(q, rest[i]) for q, idx in enumerate(bins) for i in rng.sample(list(idx), per_bin)]
-    test_neg = rng.sample(zeros, config.N_TEST_NEG)
+    test_neg = [{"tokens": w, "values": [0.0] * len(w), "maxValue": 0.0}
+                for w in rng.sample(negative_windows, config.N_TEST_NEG)]
     return Split(train, test_pos, test_neg)
 
 

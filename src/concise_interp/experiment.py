@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import config
 from .baselines import random_derangement, top_token_explanation
+from .negatives import load_negatives
 from .records import build_record, sample_ids_for, split_examples
 from .scoring import Job
 
@@ -21,9 +22,11 @@ log = logging.getLogger(__name__)
 def prepare_records(latents_data: dict[int, dict], latent_ids: list[int]):
     """latent -> (delphi record, sample-id map, split), with the pre-registered split."""
     records, sample_ids, splits = {}, {}, {}
+    windows, zero_windows = load_negatives()
     for latent in latent_ids:
+        negatives = [windows[i] for i in zero_windows[latent]]
         # A per-latent RNG keeps each latent's split independent of which others are in the sample.
-        split = split_examples(latents_data[latent]["rows"], random.Random(f"{config.SEED_MAIN}-{latent}"))
+        split = split_examples(latents_data[latent]["rows"], negatives, random.Random(f"{config.SEED_MAIN}-{latent}"))
         splits[latent], records[latent], sample_ids[latent] = split, build_record(latent, split), sample_ids_for(split)
         if len(sample_ids[latent]) < config.N_TEST_POS + config.N_TEST_NEG:
             log.warning("latent %d has duplicate test contexts (%d unique ids)", latent, len(sample_ids[latent]))

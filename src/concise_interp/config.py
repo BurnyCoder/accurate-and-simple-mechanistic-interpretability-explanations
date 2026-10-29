@@ -29,13 +29,21 @@ FIGURES_DIR = ROOT / "figures"
 # delphi's detection few-shot prompt quotes these 6-res-jb latents, so scoring them would leak.
 FEWSHOT_LATENTS = frozenset({6048, 9396})
 
+# --- Verified random negatives (PREREG deviation 2): same SAE, same dataset as Neuronpedia.
+SAE_RELEASE, SAE_ID = "gpt2-small-res-jb", "blocks.6.hook_resid_pre"  # sae_lens pretrained ids
+NEG_DATASET = "Skylion007/openwebtext"
+NEG_CONTEXT = 64  # tokens of context per window (BOS-prefixed documents, random offset)
+N_WINDOW = 17  # displayed tokens per window, matching Neuronpedia's 17-token contexts
+NEG_POOL = 4000  # random windows; each latent draws its negatives from those where it is 0
+DEVICE = os.getenv("DEVICE", "cuda")  # GPT-2 small + SAE fit easily on an 8 GB GPU
+
 # --- Example split (PREREG section 3).
 N_TRAIN = 20  # top activating records, shown only to the Exp 2 explainer
 N_TEST_POS = 25  # activating test records, stratified over activation quantiles
-N_TEST_NEG = 25  # records whose max activation is exactly 0
+N_TEST_NEG = 25  # random OpenWebText windows on which the latent is exactly 0
 N_QUANTILE_BINS = 5
 MIN_ACTIVATING = 45  # eligibility: enough activating records for train + test
-MIN_ZERO = N_TEST_NEG
+MIN_ZERO = N_TEST_NEG  # pre-registered filter on Neuronpedia zero rows; kept so the sample is unchanged
 
 # --- Samples of latents.
 N_MAIN, SEED_MAIN = 200, 0

@@ -1,0 +1,60 @@
+{"latent": 4461, "condition": "gen_b5", "budget": 5, "explanation": "Adjective describing rigid rules.", "parsed": true}
+{"latent": 4461, "condition": "gen_b2", "budget": 2, "explanation": "Adjective strict", "parsed": true}
+{"latent": 2982, "condition": "gen_b2", "budget": 2, "explanation": "Plus sign", "parsed": true}
+{"latent": 5558, "condition": "gen_b2", "budget": 2, "explanation": "Call for", "parsed": true}
+{"latent": 2982, "condition": "gen_b5", "budget": 5, "explanation": "Symbol indicating addition or increment.", "parsed": true}
+{"latent": 5558, "condition": "gen_b5", "budget": 5, "explanation": "Preposition indicating a demand.", "parsed": true}
+{"latent": 2982, "condition": "gen_b10", "budget": 10, "explanation": "Symbol indicating addition or increment in various contexts.", "parsed": true}
+{"latent": 5558, "condition": "gen_b10", "budget": 10, "explanation": "Preposition \"for\" in phrases expressing demand or request.", "parsed": true}
+{"latent": 4461, "condition": "gen_b10", "budget": 10, "explanation": "Adjective \"strict\" describing rules, laws, or regulations.", "parsed": true}
+{"latent": 4461, "condition": "gen_b20", "budget": 20, "explanation": "Adjective \"strict\" describing rules, laws, regulations, or codes governing behavior, often in formal or institutional contexts.", "parsed": true}
+{"latent": 2982, "condition": "gen_b20", "budget": 20, "explanation": "Symbol \"+\" often represents addition, increment, or a positive value in various contexts, including time zones and coding.", "parsed": true}
+{"latent": 2982, "condition": "gen_unconstrained", "budget": null, "explanation": "The symbol \"+\" is used to indicate addition, concatenation, or a positive value, often in the context of time zones, mathematical operations, or coding syntax.", "parsed": true}
+{"latent": 5558, "condition": "gen_b20", "budget": 20, "explanation": "Preposition \"for\" used in phrases calling for action, change, or a specific outcome, often in formal or official contexts.", "parsed": true}
+{"latent": 4461, "condition": "gen_unconstrained", "budget": null, "explanation": "The adjective \"strict\" is consistently used to describe rules, regulations, laws, diets, and other forms of governance or control, implying a high level of severity, rigidity, or adherence to standards.", "parsed": true}
+{"latent": 6349, "condition": "gen_b2", "budget": 2, "explanation": "Obligation marker", "parsed": true}
+{"latent": 6349, "condition": "gen_b10", "budget": 10, "explanation": "The token \"to\" in phrases of necessity or obligation.", "parsed": true}
+{"latent": 4461, "condition": "gen_b40", "budget": 40, "explanation": "The adjective \"strict\" is consistently used to describe rules, regulations, laws, diets, and standards that are severe, rigorous, and limiting, often implying a sense of control, restriction, or adherence to a particular code or authority.", "parsed": true}
+{"latent": 6349, "condition": "gen_b5", "budget": 5, "explanation": "Obligation expressed by \"have to\".", "parsed": true}
+{"latent": 9960, "condition": "gen_b2", "budget": 2, "explanation": "Indefinite article", "parsed": true}
+{"latent": 9960, "condition": "gen_b5", "budget": 5, "explanation": "Indefinite article in idiomatic phrases.", "parsed": true}
+{"latent": 2982, "condition": "gen_b40", "budget": 40, "explanation": "The symbol \"+\" is often used to indicate a positive or additional value, and is commonly found in mathematical expressions, time zones, and coding contexts, frequently denoting an increment, addition, or a specific format.", "parsed": true}
+{"latent": 9960, "condition": "gen_b10", "budget": 10, "explanation": "Indefinite article \"a\" preceding a noun or action phrase.", "parsed": true}
+{"latent": 9960, "condition": "gen_b20", "budget": 20, "explanation": "The indefinite article \"a\" is often used before taking an action or making a move.", "parsed": true}
+{"latent": 5558, "condition": "gen_b40", "budget": 40, "explanation": "The preposition \"for\" is consistently used in phrases where individuals or organizations are advocating or requesting a particular action, policy, or outcome, often in a formal or public context, such as politics, international relations, or social issues.", "parsed": true}
+{"latent": 12094, "condition": "gen_b2", "budget": 2, "explanation": "Accompanying phrase", "parsed": true}
+{"latent": 12094, "condition": "gen_b5", "budget": 5, "explanation": "Preposition indicating accompaniment or addition.", "parsed": true}
+{"latent": 5558, "condition": "gen_unconstrained", "budget": null, "explanation": "The preposition \"for\" is consistently used in the context of calling or advocating for a particular action, policy, or outcome, often in a formal or official capacity.", "parsed": true}
+{"latent": 12094, "condition": "gen_b10", "budget": 10, "explanation": "Preposition indicating accompaniment or association with something.", "parsed": true}
+{"latent": 6349, "condition": "gen_b20", "budget": 20, "explanation": "The token \"to\" is often used in phrases indicating necessity, obligation, or futurity, frequently in idiomatic expressions.", "parsed": true}
+{"latent": 17977, "condition": "gen_b2", "budget": 2, "explanation": "Minimal threshold", "parsed": true}
+{"latent": 6349, "condition": "gen_unconstrained", "budget": null, "explanation": "The token \"to\" is consistently activated in phrases that express necessity, obligation, or requirement, often in the context of \"we have to\" or \"we've got to\".", "parsed": true}
+{"latent": 6349, "condition": "gen_b40", "budget": 40, "explanation": "The token \"to\" is consistently activated in phrases expressing necessity, obligation, or futurity, often in the context of \"we have to\" or \"we've got to\", indicating a sense of requirement or urgency in the sentence.", "parsed": true}
+{"latent": 17977, "condition": "gen_b5", "budget": 5, "explanation": "Adverbial phrase indicating a minimum.", "parsed": true}
+{"latent": 17977, "condition": "gen_b10", "budget": 10, "explanation": "Adverbial phrase indicating a minimal extent or degree.", "parsed": true}
+{"latent": 9960, "condition": "gen_unconstrained", "budget": null, "explanation": "The indefinite article \"a\" is consistently activated in phrases where \"take\" is used as a verb, often in idiomatic expressions such as \"take a look\", \"take a break\", or \"take a step\".", "parsed": true}
+{"latent": 12094, "condition": "gen_unconstrained", "budget": null, "explanation": "The word \"along\" is consistently used to indicate accompaniment or association, often connecting entities, people, or things in a list or a situation.", "parsed": true}
+{"latent": 9960, "condition": "gen_b40", "budget": 40, "explanation": "The indefinite article \"a\" is consistently activated in phrases where \"take\" is used in the sense of doing something, such as taking a break, a look, a step, or a bite, often in idiomatic expressions.", "parsed": true}
+{"latent": 21278, "condition": "gen_b2", "budget": 2, "explanation": "Ampersand conjunctions", "parsed": true}
+{"latent": 21278, "condition": "gen_b5", "budget": 5, "explanation": "Ampersands and hyphens in names.", "parsed": true}
+{"latent": 17977, "condition": "gen_b20", "budget": 20, "explanation": "The phrase \"at least\" is used to convey a minimum or a lower bound in a statement.", "parsed": true}
+{"latent": 22341, "condition": "gen_b2", "budget": 2, "explanation": "Indigenous groups", "parsed": true}
+{"latent": 21278, "condition": "gen_b10", "budget": 10, "explanation": "Ampersands and conjunctions connecting words or phrases together.", "parsed": true}
+{"latent": 12094, "condition": "gen_b20", "budget": 20, "explanation": "Preposition \"along\" used to indicate accompaniment or association with something or someone.", "parsed": true}
+{"latent": 12094, "condition": "gen_b40", "budget": 40, "explanation": "The word \"along\" is consistently used to indicate accompaniment or association, often in a neutral or formal tone, typically in phrases listing multiple entities, individuals, or concepts, and is frequently used in formal or professional writing.", "parsed": true}
+{"latent": 21278, "condition": "gen_b20", "budget": 20, "explanation": "Ampersands, conjunctions, and prepositions connecting words or phrases in names, titles, and descriptive phrases.", "parsed": true}
+{"latent": 22341, "condition": "gen_b10", "budget": 10, "explanation": "Nouns referring to indigenous or distinct social groups.", "parsed": true}
+{"latent": 17977, "condition": "gen_unconstrained", "budget": null, "explanation": "The phrase \"at least\" is consistently activated, indicating a pattern of using this phrase to express a minimum or a concession, often to soften or qualify a statement.", "parsed": true}
+{"latent": 21278, "condition": "gen_unconstrained", "budget": null, "explanation": "Ampersands, conjunctions, and prepositions connecting words or phrases, often indicating a relationship or association between entities, such as companies, locations, or concepts.", "parsed": true}
+{"latent": 23455, "condition": "gen_b2", "budget": 2, "explanation": "Eye reference", "parsed": true}
+{"latent": 17977, "condition": "gen_b40", "budget": 40, "explanation": "The phrase \"at least\" is consistently activated, indicating its use as a hedge or a minimizer to soften the tone of a statement, often to express a degree of uncertainty, limitation, or contrast.", "parsed": true}
+{"latent": 22341, "condition": "gen_b5", "budget": 5, "explanation": "Nouns referring to indigenous groups.", "parsed": true}
+{"latent": 23455, "condition": "gen_b10", "budget": 10, "explanation": "The word \"eye\" in various contexts and phrases.", "parsed": true}
+{"latent": 23455, "condition": "gen_b5", "budget": 5, "explanation": "References to the human eye.", "parsed": true}
+{"latent": 22341, "condition": "gen_b20", "budget": 20, "explanation": "The word \"tribe\" or \"tribes\" referring to a distinct group of people, often indigenous or cultural.", "parsed": true}
+{"latent": 23455, "condition": "gen_b20", "budget": 20, "explanation": "The word \"eye\" is often used in various contexts, including products, health, and figurative expressions.", "parsed": true}
+{"latent": 21278, "condition": "gen_b40", "budget": 40, "explanation": "Ampersands, conjunctions, and prepositions connecting words or phrases, often in names of companies, locations, or events, and sometimes used in idiomatic expressions or to indicate a relationship between entities.", "parsed": true}
+{"latent": 22341, "condition": "gen_unconstrained", "budget": null, "explanation": "The word \"tribe\" or \"tribes\" referring to a distinct group of people, often indigenous or native, and sometimes used in a historical or cultural context.", "parsed": true}
+{"latent": 23455, "condition": "gen_unconstrained", "budget": null, "explanation": "The word \"eye\" often referring to a part of the body, but also used in various idiomatic expressions, product names, and titles, consistently showing high activation levels.", "parsed": true}
+{"latent": 23455, "condition": "gen_b40", "budget": 40, "explanation": "The token \"eye\" is consistently activated across various contexts, often referring to a body part, but also used in idiomatic expressions, product names, and figurative language, indicating a strong semantic association with vision, perception, and attention.", "parsed": true}
+{"latent": 22341, "condition": "gen_b40", "budget": 40, "explanation": "The term \"tribe\" or \"tribes\" is consistently used to refer to a distinct group of people, often indigenous or culturally specific, and is frequently used in contexts discussing their history, culture, governance, and relationships with others.", "parsed": true}

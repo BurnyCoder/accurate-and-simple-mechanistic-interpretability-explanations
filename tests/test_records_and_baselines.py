@@ -24,13 +24,14 @@ def _row(max_value: float, i: int) -> dict:
 
 @pytest.fixture
 def rows():
-    activating = [_row(float(100 - i), i) for i in range(60)]
-    zeros = [_row(0.0, 1000 + i) for i in range(30)]
-    return activating + zeros
+    return [_row(float(100 - i), i) for i in range(60)]
+
+
+NEGATIVES = [["x", f" n{i}", "."] for i in range(40)]
 
 
 def test_split_uses_top_train_and_stratified_test(rows):
-    split = split_examples(rows, random.Random(0))
+    split = split_examples(rows, NEGATIVES, random.Random(0))
     assert len(split.train) == config.N_TRAIN
     assert len(split.test_pos) == config.N_TEST_POS
     assert len(split.test_neg) == config.N_TEST_NEG
@@ -46,13 +47,13 @@ def test_split_uses_top_train_and_stratified_test(rows):
 
 
 def test_split_is_deterministic_given_seed(rows):
-    a = split_examples(rows, random.Random(0))
-    b = split_examples(rows, random.Random(0))
+    a = split_examples(rows, NEGATIVES, random.Random(0))
+    b = split_examples(rows, NEGATIVES, random.Random(0))
     assert [r["maxValue"] for _, r in a.test_pos] == [r["maxValue"] for _, r in b.test_pos]
 
 
 def test_build_record_matches_delphi_types(rows):
-    split = split_examples(rows, random.Random(0))
+    split = split_examples(rows, NEGATIVES, random.Random(0))
     record = build_record(7, split)
     assert record.latent.latent_index == 7
     assert len(record.train) == 20 and len(record.test) == 25 and len(record.not_active) == 25

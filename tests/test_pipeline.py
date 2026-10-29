@@ -32,8 +32,8 @@ def test_samples_are_disjoint_and_reliability_is_inside_main():
 
 def _record():
     rows = [{"tokens": ["a", " b", " hit"], "values": [0, 0, float(100 - i)], "maxValue": float(100 - i)} for i in range(50)]
-    rows += [{"tokens": ["a", " b", " c"], "values": [0, 0, 0], "maxValue": 0.0} for _ in range(30)]
-    return build_record(1, split_examples(rows, random.Random(0)))
+    negatives = [["a", " b", f" c{i}"] for i in range(30)]
+    return build_record(1, split_examples(rows, negatives, random.Random(0)))
 
 
 def test_budget_explainer_appends_instruction_only_to_last_message():

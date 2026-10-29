@@ -11,6 +11,7 @@ import matplotlib
 
 matplotlib.use("Agg")  # headless: figures are written to files, never shown
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator, NullFormatter, ScalarFormatter
 import numpy as np
 import pandas as pd
 
@@ -37,6 +38,14 @@ def _style(ax):
     ax.tick_params(colors=MUTED, labelsize=8)
     ax.xaxis.label.set_color(INK)
     ax.yaxis.label.set_color(INK)
+
+
+def _log_x(ax, ticks=(2, 5, 10, 20, 50, 100)):
+    """Log x-axis with plain-number ticks (matplotlib's default 3x10^0 labels overlap)."""
+    ax.set_xscale("log")
+    ax.xaxis.set_major_locator(FixedLocator(ticks))
+    ax.xaxis.set_major_formatter(ScalarFormatter())
+    ax.xaxis.set_minor_formatter(NullFormatter())
 
 
 def _dot_ci(ax, labels, stats_list, color, xlabel):
@@ -73,7 +82,7 @@ def fig_budget_curves(df, path):
                     color=INK, fontsize=9, va="center")
     for t, b in zip(tok, config.BUDGETS):
         ax.annotate(f"~{b}w", (t, 0), xytext=(0, 4), textcoords="offset points", ha="center", color=MUTED, fontsize=7)
-    ax.set_xscale("log")
+    _log_x(ax)
     ax.set_xlabel("median explanation length (o200k tokens), log scale")
     ax.set_ylabel("mean score over latents (95% CI)")
     ax.set_ylim(bottom=0)
@@ -94,7 +103,7 @@ def fig_h_sweep(df, path):
         ax.plot(tok, means, "-o", color=color, lw=2, ms=5)
         ax.annotate("H = ∞ (plain J)" if math.isinf(h) else f"H = {h:g}", (tok[-1], means[-1]),
                     xytext=(6, 0), textcoords="offset points", color=INK, fontsize=8, va="center")
-    ax.set_xscale("log")
+    _log_x(ax)
     ax.set_xlabel("median explanation length (o200k tokens), log scale")
     ax.set_ylabel("mean S over latents")
     ax.set_title("Where the optimum length sits depends on the half-life H", color=INK, fontsize=10)
@@ -132,7 +141,7 @@ def fig_j_vs_length(df, path):
             ax.plot(grid_l, j_iso, color=MUTED, lw=0.7, ls="--")
             ax.annotate(f"S={level}", (grid_l[60], j_iso[60]), fontsize=6, color=MUTED)
         ax.scatter(g.n_tokens, g.j, s=10, color=BLUE, alpha=0.5, lw=0)
-        ax.set_xscale("log")
+        _log_x(ax, (1, 3, 10, 30, 100))
         ax.set_ylim(-0.5, 1.05)
         ax.set_title(title, fontsize=9, color=INK)
         ax.set_xlabel("tokens")

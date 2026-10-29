@@ -5,7 +5,7 @@
     uv run python run.py --phase reliability            # retest + alternative scorer, 50 latents
     uv run python run.py --phase analyze                # every table and figure from results/
 
-Phases: download -> explain (Exp 2) -> score (Exp 1 + Exp 2) -> reliability -> analyze.
+Phases: download -> negatives -> explain (Exp 2) -> score (Exp 1 + Exp 2) -> reliability -> analyze.
 Every phase is resumable: finished jobs are read back from results/ and skipped.
 """
 
@@ -18,6 +18,7 @@ from datetime import datetime
 from concise_interp import config
 from concise_interp.data import load_processed, prepare
 from concise_interp.experiment import exp1_jobs, exp2_jobs, prepare_records
+from concise_interp.negatives import build_negatives
 from concise_interp.explain import generate_explanations
 from concise_interp.scoring import run_scoring
 
@@ -69,12 +70,14 @@ def phase_reliability() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--phase", choices=["download", "score", "all", "reliability", "analyze"], required=True)
+    parser.add_argument("--phase", choices=["download", "negatives", "score", "all", "reliability", "analyze"], required=True)
     parser.add_argument("--sample", choices=["pilot", "main"], default="pilot")
     args = parser.parse_args()
     setup_logging(f"{args.phase}_{args.sample}")
     if args.phase in ("download", "all"):
         logging.info("download: %s", prepare())
+    if args.phase in ("negatives", "all"):
+        logging.info("negatives: %s", build_negatives(load_processed()[0]))
     if args.phase in ("score", "all"):
         phase_explain_and_score(args.sample)
     if args.phase == "reliability":
