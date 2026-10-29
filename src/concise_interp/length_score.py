@@ -27,7 +27,9 @@ def _encoding() -> tiktoken.Encoding:
 
 def n_tokens(text: str) -> int:
     """Explanation length L in o200k_base tokens, ignoring surrounding whitespace."""
-    return len(_encoding().encode(text.strip()))
+    # disallowed_special=(): an explanation may literally mention "<|endoftext|>"; count it as
+    # plain text instead of raising (tiktoken's default refuses special-token strings).
+    return len(_encoding().encode(text.strip(), disallowed_special=()))
 
 
 def n_words(text: str) -> int:

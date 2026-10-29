@@ -101,7 +101,7 @@ def fig_h_sweep(df, path):
         s = wide(df.assign(s=with_half_life(df, h)), "s")
         means = [s[c].mean() for c in BUDGET_CONDITIONS]
         ax.plot(tok, means, "-o", color=color, lw=2, ms=5)
-        ax.annotate("H = ∞ (plain J)" if math.isinf(h) else f"H = {h:g}", (tok[-1], means[-1]),
+        ax.annotate("H = ∞ (max(J,0), no length factor)" if math.isinf(h) else f"H = {h:g}", (tok[-1], means[-1]),
                     xytext=(6, 0), textcoords="offset points", color=INK, fontsize=8, va="center")
     _log_x(ax)
     ax.set_xlabel("median explanation length (o200k tokens), log scale")
@@ -139,7 +139,9 @@ def fig_j_vs_length(df, path):
         for level in (0.2, 0.4, 0.6):  # iso-S curves: J = S * 2^(L/H)
             j_iso = level * 2 ** (grid_l / config.HALF_LIFE_TOKENS)
             ax.plot(grid_l, j_iso, color=MUTED, lw=0.7, ls="--")
-            ax.annotate(f"S={level}", (grid_l[60], j_iso[60]), fontsize=6, color=MUTED)
+            # Label at the left end, where every iso-S curve is still inside the axes.
+            ax.annotate(f"S={level}", (grid_l[0], j_iso[0]), xytext=(2, 3), textcoords="offset points",
+                        fontsize=6, color=MUTED)
         ax.scatter(g.n_tokens, g.j, s=10, color=BLUE, alpha=0.5, lw=0)
         _log_x(ax, (1, 3, 10, 30, 100))
         ax.set_ylim(-0.5, 1.05)

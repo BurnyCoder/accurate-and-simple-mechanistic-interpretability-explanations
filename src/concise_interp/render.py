@@ -5,6 +5,7 @@ files". Templates in templates/ contain placeholders that this module fills:
 
     {{H3.s_by_budget.gen_b10.mean:.3f}}   dotted path into numbers.json, Python format spec
     {{table:conditions}}                  a generated markdown table (see TABLES)
+    {{include:templates_static/x.md}}     another file, rendered the same way (shared text)
 
 `uv run python run.py --phase analyze` calls `render_all()` after the analysis.
 """
@@ -34,7 +35,7 @@ def lookup(numbers: dict, path: str):
 
 def table_conditions(numbers: dict) -> str:
     rows = {r["condition"]: r for r in numbers["conditions"]}
-    lines = ["| explanation source | role | n | mean BA | mean J [95% CI] | median tokens | mean S (H=%g) [95% CI] |" % numbers["half_life"],
+    lines = [f"| explanation source | role | n | mean BA | mean J [95% CI] | median tokens | mean S (H={numbers['half_life']:g}) [95% CI] |",
              "|---|---|---:|---:|---:|---:|---:|"]
     for c in [c for c in ORDER if c in rows]:
         r = rows[c]
@@ -44,7 +45,7 @@ def table_conditions(numbers: dict) -> str:
 
 
 def table_h3(numbers: dict) -> str:
-    lines = ["| comparison (S at H=%g) | mean difference [95% CI] | Wilcoxon p (one-sided) | Holm p |" % numbers["half_life"],
+    lines = [f"| comparison (S at H={numbers['half_life']:g}) | mean difference [95% CI] | Wilcoxon p (one-sided) | Holm p |",
              "|---|---:|---:|---:|"]
     for name, t in numbers["H3"]["tests"].items():
         a, b = name.split("_vs_")
@@ -68,7 +69,7 @@ def table_h_sweep(numbers: dict) -> str:
     lines = ["| H (tokens) | " + " | ".join(LABELS[c] for c in conds) + " | best budget |",
              "|---|" + "---:|" * len(conds) + "---|"]
     for h, v in sweep.items():
-        lines.append(f"| {'∞ (plain J)' if h == 'inf' else h} | " + " | ".join(f"{v['mean_s'][c]:.3f}" for c in conds)
+        lines.append(f"| {'∞ (no length factor: max(J, 0))' if h == 'inf' else h} | " + " | ".join(f"{v['mean_s'][c]:.3f}" for c in conds)
                      + f" | ~{v['best_budget'][5:]} words |")
     return "\n".join(lines)
 
@@ -90,8 +91,10 @@ TABLES = {"conditions": table_conditions, "h3": table_h3, "h4": table_h4, "h_swe
 def render(template: str, numbers: dict) -> str:
     def fill(match):
         path, spec = match.group(1), match.group(2)
-        if path.startswith("table"):
+        if path == "table":
             return TABLES[spec](numbers)
+        if path == "include":
+            return render((config.ROOT / spec).read_text(encoding="utf-8"), numbers)
         value = lookup(numbers, path)
         return format(value, spec) if spec else str(value)
     return PLACEHOLDER.sub(fill, template)
@@ -100,6 +103,9 @@ def render(template: str, numbers: dict) -> str:
 def render_all(sample: str = "main") -> list[Path]:
     """templates/<path> -> <path> for every template file (README.md, paper/, reports/)."""
     numbers = json.loads((config.RESULTS_DIR / sample / "numbers.json").read_text())
+    pilot = config.RESULTS_DIR / "pilot" / "numbers.json"
+    if pilot.exists():  # the pilot report cites its own (debugging-only) numbers
+        numbers["pilot"] = json.loads(pilot.read_text())
     written = []
     for tpl in sorted((config.ROOT / "templates").rglob("*.md")):
         target = config.ROOT / tpl.relative_to(config.ROOT / "templates")
