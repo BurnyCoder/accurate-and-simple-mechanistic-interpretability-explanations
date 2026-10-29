@@ -1,0 +1,5 @@
+# The code runs inside WSL2/Linux; force LF so scripts work on both sides.
+* text=auto eol=lf
+*.png binary
+*.pdf binary
+*.gz binary

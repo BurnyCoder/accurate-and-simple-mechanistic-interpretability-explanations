@@ -1,0 +1,19 @@
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets: never commit the OpenRouter key
+.env
+
+# Large downloaded raw data (re-downloaded by `run.py --phase download`)
+data/raw/
+
+# Full LLM prompt/response logs are large; they are uploaded to the Hugging Face dataset instead
+logs/*.log
+
+# Paper build intermediates
+paper/*.aux
+paper/*.log
+paper/*.out
