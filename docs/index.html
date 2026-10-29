@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accurate and Simple Explanations</title>
+<style>
+  /* Colour tokens; dark mode redefines them (OS setting or explicit data-theme). */
+  :root {
+    --bg: #fcfcfb; --panel: #ffffff; --ink: #0b0b0b; --muted: #52514e; --line: #e4e3df;
+    --j: #2a78d6; --s: #eb6834; --good: #1baf7a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1a1a19; --panel: #222221; --ink: #f0efec; --muted: #c3c2b7; --line: #3a3936;
+      --j: #3987e5; --s: #d95926; --good: #199e70;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1a19; --panel: #222221; --ink: #f0efec; --muted: #c3c2b7; --line: #3a3936;
+    --j: #3987e5; --s: #d95926; --good: #199e70;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.1rem; margin: 32px 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 16px; max-width: 75ch; }
+  code { font-size: 0.9em; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+              background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+  .controls label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+  input[type=range] { width: 220px; }
+  select, input[type=search] { font: inherit; padding: 4px 8px; border: 1px solid var(--line);
+                               border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; background: var(--panel); }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
+  td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  tr.best td { background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .bar { display: inline-block; height: 8px; border-radius: 4px; vertical-align: middle; margin-right: 6px; }
+  .tag { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+  .note { color: var(--muted); font-size: 0.85rem; }
+  a { color: var(--j); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Accurate and simple SAE feature explanations</h1>
+  <p class="lead">
+    Detection scoring (<a href="https://arxiv.org/abs/2410.13928">Paulo et al. 2024</a>, via
+    <a href="https://github.com/EleutherAI/delphi">delphi</a>) gives each explanation an above-chance accuracy
+    <b>J = 2·BA − 1</b>. This project multiplies it by a length factor:
+    <b>S = max(J, 0) · 2<sup>−L/H</sup></b>, where L is the length in tokens.
+    Move the half-life <b>H</b> to see how the ranking of explanations changes. The data is GPT-2 small,
+    SAE <code>6-res-jb</code>, with explanations from Neuronpedia and Llama-3.1-70B, scored by Llama-3.1-70B.
+    <a href="https://github.com/BurnyCoder/accurate-and-simple-mechanistic-interpretability-explanations">Code, paper and pre-registration</a>.
+  </p>
+
+  <div class="controls">
+    <label>Half-life H <input id="h" type="range" min="0" max="6" step="1" value="3"> <b id="hval"></b></label>
+    <label>Latent <select id="latent"></select></label>
+    <label><input id="search" type="search" placeholder="search explanations"></label>
+  </div>
+
+  <h2>Mean score per explanation source</h2>
+  <div class="table-wrap"><table id="summary"></table></div>
+  <p class="note">Means over all latents in the main sample. H = ∞ is plain detection scoring. Bars are scaled to the column maximum.</p>
+
+  <h2>Explanations for one latent</h2>
+  <p class="note" id="latent-link"></p>
+  <div class="table-wrap"><table id="detail"></table></div>
+  <p class="note">The highlighted row is the explanation with the highest S at the current H.</p>
+</main>
+<script>
+// Half-life options for the slider; Infinity = no length factor (plain J).
+const H_OPTIONS = [5, 10, 20, 30, 40, 80, Infinity];
+const LABELS = {gpt35: "gpt-3.5-turbo (Neuronpedia)", gpt4omini: "gpt-4o-mini (Neuronpedia)",
+  top_token: "top-token baseline", random: "random control", gen_unconstrained: "Llama-70B unconstrained"};
+const label = c => LABELS[c] || (c.startsWith("gen_b") ? `Llama-70B ~${c.slice(5)} words` : c.startsWith("human") ? "human (Neuronpedia)" : c);
+const score = (j, n, h) => Math.max(j, 0) * (h === Infinity ? 1 : Math.pow(2, -n / h));
+const fmt = x => (x === null || Number.isNaN(x)) ? "–" : x.toFixed(3);
+const el = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+
+fetch("data.json").then(r => r.json()).then(data => {
+  const latents = data.latents;
+  el("latent").innerHTML = latents.map(l => `<option value="${l.latent}">${l.latent}</option>`).join("");
+  const render = () => {
+    const h = H_OPTIONS[+el("h").value];
+    el("hval").textContent = h === Infinity ? "∞ (plain J)" : `${h} tokens`;
+    // Summary: mean J, median tokens, mean S per condition.
+    const by = {};
+    latents.forEach(l => l.explanations.forEach(e => {
+      if (e.j === null) return;
+      const c = e.condition.startsWith("human") ? "human" : e.condition;
+      (by[c] ||= []).push(e);
+    }));
+    const rows = Object.entries(by).map(([c, es]) => ({c, n: es.length,
+      j: es.reduce((a, e) => a + e.j, 0) / es.length,
+      tok: es.map(e => e.n_tokens).sort((a, b) => a - b)[Math.floor(es.length / 2)],
+      s: es.reduce((a, e) => a + score(e.j, e.n_tokens, h), 0) / es.length}))
+      .sort((a, b) => b.s - a.s);
+    const maxJ = Math.max(...rows.map(r => r.j)), maxS = Math.max(...rows.map(r => r.s));
+    el("summary").innerHTML = `<tr><th>source</th><th>n</th><th>mean J</th><th>median tokens</th><th>mean S (H = ${h === Infinity ? "∞" : h})</th></tr>` +
+      rows.map(r => `<tr><td>${label(r.c)}</td><td class="num">${r.n}</td>
+        <td class="num"><span class="bar" style="width:${60 * Math.max(r.j, 0) / maxJ}px;background:var(--j)"></span>${fmt(r.j)}</td>
+        <td class="num">${r.tok}</td>
+        <td class="num"><span class="bar" style="width:${60 * r.s / maxS}px;background:var(--s)"></span>${fmt(r.s)}</td></tr>`).join("");
+    // Detail: one latent, all its explanations ranked by S.
+    const q = el("search").value.toLowerCase();
+    const lat = latents.find(l => String(l.latent) === el("latent").value);
+    el("latent-link").innerHTML = `<a href="https://www.neuronpedia.org/gpt2-small/6-res-jb/${lat.latent}">Open latent ${lat.latent} on Neuronpedia</a> (top activations, logits).`;
+    const es = lat.explanations.filter(e => e.j !== null && e.explanation.toLowerCase().includes(q))
+      .map(e => ({...e, s: score(e.j, e.n_tokens, h)})).sort((a, b) => b.s - a.s);
+    el("detail").innerHTML = `<tr><th>explanation</th><th>source</th><th>J</th><th>tokens</th><th>S</th></tr>` +
+      es.map((e, i) => `<tr class="${i === 0 ? "best" : ""}"><td>${esc(e.explanation)}</td><td class="tag">${label(e.condition)}</td>
+        <td class="num">${fmt(e.j)}</td><td class="num">${e.n_tokens}</td><td class="num">${fmt(e.s)}</td></tr>`).join("");
+  };
+  ["h", "latent", "search"].forEach(id => el(id).addEventListener("input", render));
+  render();
+});
+</script>
+</body>
+</html>
