@@ -120,3 +120,10 @@ No latents are added after results are seen. Calls that failed because of API er
 ## Deviations
 
 1. **2026-10-29, before any results (pilot included).** The Exp 2 budget instruction changed from "must be at most B words" to "must be approximately B words long". Reason: delphi's explainer system prompt already says "Keep your explanations short and concise". Under an upper bound alone, the 20- and 40-word conditions would probably collapse to the same short length and fail to produce the length range that H2 and H3 need. The analysis still uses the actual token length L.
+2. **2026-10-29, after the debugging pilot and before any main-sample results.** The test negatives change from Neuronpedia's zero-activation rows to verified random negatives.
+   - What the pilot showed: Neuronpedia's zero rows are overlapping 17-token sliding windows over a handful of documents, shared across latents. The 210 sampled latents' 5,250 zero rows contain only 2,010 unique texts, and each latent gets about 5 underlying documents.
+   - Why that matters: such negatives barely test precision, which is what penalizes broad explanations, the central trade-off of this study.
+   - New negatives, as in delphi's default and in Paulo et al.: random 17-token windows from Skylion007/openwebtext (each with 47 tokens of preceding context, one random window per document, a pool of 4,000). A window qualifies if the latent's activation under the exact same SAE (sae_lens `gpt2-small-res-jb`, `blocks.6.hook_resid_pre`, run on GPT-2 small) is exactly 0 at every displayed token. Each latent draws 25 of its qualifying windows (seed 0).
+   - Tokens are displayed in Neuronpedia's format, so positives and negatives cannot be told apart by formatting.
+   - Unchanged: the positives, the latent samples and every analysis. The ≥25-zero-row eligibility filter is kept so the drawn samples stay identical.
+   - The pilot is re-run with the new negatives. Its first run is discarded.
