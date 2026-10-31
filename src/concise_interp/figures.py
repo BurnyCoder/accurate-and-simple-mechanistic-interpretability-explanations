@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from . import config
-from .analysis import BUDGET_CONDITIONS, mean_ci, wide, with_half_life
+from .analysis import BUDGET_CONDITIONS, condition_ci, wide, with_half_life
 
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
@@ -64,7 +64,7 @@ def fig_conditions(df, path):
     fig, axes = plt.subplots(1, 2, figsize=(10, 0.38 * len(conds) + 1.4), sharey=True)
     for ax, col, color, label in ((axes[0], "j", BLUE, "detection score J = 2·BA − 1 (mean, 95% CI)"),
                                   (axes[1], "s", ORANGE, f"length-penalized S, H = {config.HALF_LIFE_TOKENS:g} tokens")):
-        _dot_ci(ax, [LABELS[c] for c in conds], [mean_ci(df[df.condition == c][col].dropna()) for c in conds], color, label)
+        _dot_ci(ax, [LABELS[c] for c in conds], [condition_ci(df, col, c) for c in conds], color, label)
     fig.suptitle("Accuracy alone vs accuracy × brevity, per explanation source", color=INK, fontsize=11)
     fig.tight_layout()
     fig.savefig(path, dpi=200)
@@ -75,7 +75,7 @@ def fig_budget_curves(df, path):
     tok = [df[df.condition == c].n_tokens.median() for c in BUDGET_CONDITIONS]
     fig, ax = plt.subplots(figsize=(6.5, 4))
     for col, color, name in (("j", BLUE, "J (accuracy only)"), ("s", ORANGE, f"S (H = {config.HALF_LIFE_TOKENS:g})")):
-        st = [mean_ci(df[df.condition == c][col].dropna()) for c in BUDGET_CONDITIONS]
+        st = [condition_ci(df, col, c) for c in BUDGET_CONDITIONS]
         ax.fill_between(tok, [s["lo"] for s in st], [s["hi"] for s in st], color=color, alpha=0.15, lw=0)
         ax.plot(tok, [s["mean"] for s in st], "-o", color=color, lw=2, ms=6)
         ax.annotate(name, (tok[-1], st[-1]["mean"]), xytext=(6, 0), textcoords="offset points",
@@ -149,7 +149,7 @@ def fig_j_vs_length(df, path):
         ax.set_xlabel("tokens")
         _style(ax)
     axes[0].set_ylabel("J")
-    fig.suptitle("Every scored explanation; dashed lines = equal S (same score under the length factor)", color=INK, fontsize=10)
+    fig.suptitle(f"Every scored explanation; dashed lines = equal S at H = {config.HALF_LIFE_TOKENS:g} tokens", color=INK, fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=200)
     plt.close(fig)
