@@ -64,7 +64,7 @@ With verified negatives, the final pilot's random control scored J = -0.024, abo
 
 ## Setup
 
-- **Latents:** 200 latents of `gpt2-small/6-res-jb`, sampled at random (seed 0) from the 17226 eligible ones.
+- **Latents:** 200 latents of `gpt2-small/6-res-jb`, sampled at random (seed 0) from the 17226 eligible ones: those with explanations from both gpt-3.5-turbo and gpt-4o-mini, ≥ 45 activating contexts and ≥ 25 zero-activation rows in the export.
 - **Conditions per latent:**
   - `gpt35` and `gpt4omini`: Neuronpedia's explanations, made with OpenAI's token–activation-pair explainer method.
   - `top_token` (baseline): `the token "X"`, with X the most frequent peak token among the 20 strongest contexts.
