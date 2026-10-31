@@ -33,6 +33,7 @@ The project's new score multiplies the above-chance detection score by a length 
 | `results/main/generated_explanations.jsonl` | Llama-3.1-70B explanations at word budgets ~2, 5, 10, 20, 40, and unconstrained. |
 | `results/main/numbers.json` | All analysis numbers (pre-registered hypothesis tests). |
 | `data/processed/` | The Neuronpedia rows of the sampled latents, the sample lists, and the verified negative contexts. |
+| `results/pilot/`, `results/pilot_discarded_old_negatives/` | The 10-latent debugging pilot, and its discarded first run with Neuronpedia's zero-row negatives. Not used for any claim. |
 | `logs/` | Every LLM prompt and response, untruncated. |
 
 ## Conditions
@@ -45,9 +46,9 @@ The project's new score multiplies the above-chance detection score by a length 
 
 ## Main results
 
-- Plain detection (J) prefers longer explanations: J goes from 0.464 at ~2 words to 0.577 at ~40 words.
+- Plain detection (J) rewards longer explanations: when Llama-3.1-70B is asked for ~2 to ~40 words, mean J goes from 0.464 to 0.577.
 - At H = 20, mean S is highest for the shortest explanations, so the pre-registered interior optimum was falsified.
-- Choosing explanations by S instead of J makes them 39% shorter, for 0.031 held-out J.
+- Choosing among 8 candidate explanations per latent by S instead of J makes the picks 39% shorter (median tokens), for 0.031 held-out J.
 
 See the repository README and paper for the full write-up.
 
@@ -56,6 +57,6 @@ See the repository README and paper for the full write-up.
 This dataset mixes material under its sources' own terms; no single license is asserted.
 
 - Explanations and activations come from [Neuronpedia's public exports](https://neuronpedia-datasets.s3.us-east-1.amazonaws.com/index.html).
-- Negatives are windows of [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext) (CC0).
+- Negatives are windows of [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext). Its card lists CC0-1.0, which covers the dataset packaging; the underlying web text is not owned by the dataset's maintainers.
 - The SAE is by [Joseph Bloom](https://huggingface.co/jbloom/GPT2-Small-SAEs-Reformatted).
 - Scorer prompts are from [delphi](https://github.com/EleutherAI/delphi) (Apache-2.0).

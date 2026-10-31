@@ -10,12 +10,18 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from concise_interp import config
 from concise_interp.analysis import (
+    api_usage,
     bootstrap_ci,
+    condition_table,
     crossfit_selection,
     explanation_metrics,
     holm,
+    mean_ci,
+    wide,
 )
+from concise_interp.data import filter_counts
 
 
 def _samples(tp, fn, tn, fp, failed=0):
@@ -81,3 +87,41 @@ def test_crossfit_ties_go_to_the_shorter_explanation():
     halves = {1: ({"p0", "p1", "n0", "n1"}, {"p2", "p3", "n2", "n3"})}
     out = crossfit_selection(rows, halves, half_life=20).set_index("rule")
     assert out.loc["argmax_j", "n_tokens"] == 1
+
+
+def test_condition_table_ci_is_the_h1_ci_whatever_the_row_order():
+    # scores.jsonl rows arrive in API-completion order; the table must not depend on it.
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame([{"latent": lat, "condition": c, "j": rng.normal(), "s": rng.random(),
+                        "ba": rng.random(), "n_tokens": 5} for lat in range(30) for c in ("a", "b")])
+    shuffled = df.sample(frac=1, random_state=1).reset_index(drop=True)
+    t1, t2 = (condition_table(d).set_index("condition") for d in (df, shuffled))
+    pd.testing.assert_frame_equal(t1, t2)
+    assert t1.loc["a", "j_lo"] == mean_ci(wide(df, "j")["a"].dropna())["lo"]
+
+
+def test_api_usage_counts_providers_per_output(tmp_path, monkeypatch):
+    meta = 'x INFO concise_interp.llm: META [{tag}] provider={p} usage={{"cost": 0.5, "total_tokens": 10}}\n'
+    (tmp_path / "1_score_main.log").write_text(
+        meta.format(tag="explain/1/gen_b2", p="DeepInfra")
+        + "x INFO concise_interp.scoring: score -> scores.jsonl: 1 jobs to run\n"
+        + meta.format(tag="score/1/gpt35", p="DeepInfra") + meta.format(tag="score/1/gpt35", p="Groq"),
+        encoding="utf-8")
+    monkeypatch.setattr(config, "LOG_DIR", tmp_path)
+    usage = api_usage("*score_main.log")
+    assert usage["calls"] == 3 and usage["cost_usd"] == pytest.approx(1.5) and usage["total_tokens"] == 30
+    assert usage["providers"] == {"explain": {"DeepInfra": 1}, "scores": {"DeepInfra": 1, "Groq": 1}}
+
+
+def test_api_usage_keeps_committed_totals_without_logs(tmp_path, monkeypatch):
+    # A fresh clone has no logs/; analyze must not overwrite the committed totals with zeros.
+    monkeypatch.setattr(config, "LOG_DIR", tmp_path)
+    committed = {"calls": 7, "cost_usd": 1.0, "total_tokens": 9, "providers": {"scores": {"DeepInfra": 7}}}
+    assert api_usage("*score_main.log", committed) == committed
+    assert api_usage("*score_main.log")["calls"] == 0
+
+
+def test_filter_counts_counts_each_eligibility_filter_alone():
+    explanations = {1: [{"source": "gpt35"}, {"source": "gpt4omini"}], 2: [{"source": "gpt35"}]}
+    counts = {1: (config.MIN_ACTIVATING, 0), 2: (0, config.MIN_ZERO), 3: (config.MIN_ACTIVATING, config.MIN_ZERO)}
+    assert filter_counts(explanations, counts) == {"both_llm_explanations": 1, "min_activating": 2, "min_zero_rows": 2}

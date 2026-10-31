@@ -84,8 +84,17 @@ def table_reliability(numbers: dict) -> str:
     return "\n".join(lines)
 
 
+def table_providers(numbers: dict) -> str:
+    """Which OpenRouter providers served each run's calls (counted from the logs' META lines)."""
+    lines = ["| phase | output | provider: calls |", "|---|---|---|"]
+    for phase in ("score", "reliability"):
+        for output, counts in numbers["api_usage"][phase]["providers"].items():
+            lines.append(f"| {phase} | `{output}` | " + ", ".join(f"{p}: {n}" for p, n in counts.items()) + " |")
+    return "\n".join(lines)
+
+
 TABLES = {"conditions": table_conditions, "h3": table_h3, "h4": table_h4, "h_sweep": table_h_sweep,
-          "reliability": table_reliability}
+          "reliability": table_reliability, "providers": table_providers}
 
 
 def render(template: str, numbers: dict) -> str:

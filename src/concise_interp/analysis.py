@@ -10,6 +10,7 @@ import json
 import logging
 import math
 import random
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -60,7 +61,9 @@ def with_half_life(df: pd.DataFrame, half_life: float) -> pd.Series:
 # ---------- statistics ----------
 
 def bootstrap_ci(values, seed: int = config.SEED_ANALYSIS, n_boot: int = config.N_BOOTSTRAP, level: float = 0.95):
-    """Percentile bootstrap CI of the mean (resampling latents)."""
+    """Percentile bootstrap CI of the mean (resampling latents; Efron 1979,
+    https://doi.org/10.1214/aos/1176344552). The resamples depend on the order of `values`,
+    so callers pass latent-ordered vectors (`wide`) to get one CI per quantity everywhere."""
     values = np.asarray(values, dtype=float)
     rng = np.random.default_rng(seed)
     means = values[rng.integers(0, len(values), size=(n_boot, len(values)))].mean(axis=1)
@@ -74,7 +77,7 @@ def mean_ci(values) -> dict:
 
 
 def holm(pvalues: list[float]) -> list[float]:
-    """Holm step-down adjusted p-values (Holm 1979), in the input order."""
+    """Holm step-down adjusted p-values (Holm 1979, https://www.jstor.org/stable/4615733), in the input order."""
     order = np.argsort(pvalues)
     adjusted, running = [0.0] * len(pvalues), 0.0
     for rank, i in enumerate(order):
@@ -89,7 +92,8 @@ def wide(df: pd.DataFrame, value: str) -> pd.DataFrame:
 
 
 def paired(df_wide: pd.DataFrame, a: str, b: str) -> dict:
-    """Mean of a - b over latents having both, with bootstrap CI and one-sided Wilcoxon (a > b)."""
+    """Mean of a - b over latents having both, with bootstrap CI and one-sided Wilcoxon
+    signed-rank test (a > b; Wilcoxon 1945, https://doi.org/10.2307/3001968)."""
     d = (df_wide[a] - df_wide[b]).dropna()
     p = float(stats.wilcoxon(d, alternative="greater").pvalue) if (d != 0).any() else 1.0
     return {**mean_ci(d), "p_greater": p}
@@ -203,7 +207,9 @@ def exploratory(df: pd.DataFrame) -> dict:
         best_budget = max(BUDGET_CONDITIONS, key=lambda c: means.get(c, -1))
         # Post-hoc (not pre-registered): is the best budget better than both endpoints at this H?
         tests = {f"best_minus_{e}": paired(sh, best_budget, e) for e in ("gen_b2", "gen_b40") if e != best_budget}
-        sweep["inf" if math.isinf(h) else str(int(h))] = {"mean_s": means, "best_budget": best_budget, "tests": tests}
+        sweep["inf" if math.isinf(h) else str(int(h))] = {"mean_s": means, "best_budget": best_budget,
+                                                          "best_budget_words": int(best_budget.removeprefix("gen_b")),
+                                                          "tests": tests}
     # Length unit robustness: re-express H in words/chars with the mean words-per-token ratio.
     w_per_t = df.n_words.sum() / df.n_tokens.sum()
     c_per_t = df.n_chars.sum() / df.n_tokens.sum()
@@ -211,9 +217,15 @@ def exploratory(df: pd.DataFrame) -> dict:
     s_words = [length_penalized_score(a, n, h * w_per_t) for a, n in zip(df.j, df.n_words)]
     s_chars = [length_penalized_score(a, n, h * c_per_t) for a, n in zip(df.j, df.n_chars)]
     valid = df.s.notna()
+    def two_sided(w: pd.DataFrame, a: str, b: str) -> dict:
+        return paired(w, a, b) | {"two_sided_p": float(stats.wilcoxon((w[a] - w[b]).dropna()).pvalue)}
+
     return {
-        "gpt4omini_minus_gpt35_J": paired(j, "gpt4omini", "gpt35") | {"two_sided_p": float(stats.wilcoxon((j.gpt4omini - j.gpt35).dropna()).pvalue)},
-        "gpt4omini_minus_gpt35_S": paired(s, "gpt4omini", "gpt35") | {"two_sided_p": float(stats.wilcoxon((s.gpt4omini - s.gpt35).dropna()).pvalue)},
+        "gpt4omini_minus_gpt35_J": two_sided(j, "gpt4omini", "gpt35"),
+        "gpt4omini_minus_gpt35_S": two_sided(s, "gpt4omini", "gpt35"),
+        # Post hoc: the top-token baseline against Neuronpedia's explanations (J, and S at H = 20).
+        "top_token_vs_existing": {f"minus_{c}_{k}": two_sided(w, "top_token", c)
+                                  for c in ("gpt35", "gpt4omini") for k, w in (("J", j), ("S", s))},
         "h_sweep": sweep,
         "unit_robustness_spearman": {
             "tokens_vs_words": float(stats.spearmanr(df.s[valid], np.array(s_words)[valid]).statistic),
@@ -232,7 +244,16 @@ def reliability(main: pd.DataFrame, other: pd.DataFrame) -> dict:
         ok = m[col].notna() & m[f"{col}_2"].notna()
         out[f"spearman_{col}"] = float(stats.spearmanr(m[col][ok], m[f"{col}_2"][ok]).statistic)
     out["mean_s_by_budget_other"] = {c: float(other[other.condition == c].s.mean()) for c in BUDGET_CONDITIONS}
+    # The main run's means on the same latents, so the re-scored means have a like-for-like reference.
+    same = main[main.latent.isin(set(other.latent))]
+    out["mean_s_by_budget_main_subset"] = {c: float(same[same.condition == c].s.mean()) for c in BUDGET_CONDITIONS}
     return out
+
+
+def condition_ci(df: pd.DataFrame, col: str, condition: str) -> dict:
+    """Mean and CI of `col` for one condition, over latents in latent order: the same vector
+    H1-H3 bootstrap, so a mean has one CI everywhere (scores.jsonl rows are in API-completion order)."""
+    return mean_ci(wide(df, col)[condition].dropna())
 
 
 def condition_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -241,8 +262,10 @@ def condition_table(df: pd.DataFrame) -> pd.DataFrame:
     for cond, g in df.groupby("condition"):
         if cond.startswith("human"):
             continue
-        rows.append({"condition": cond, "n": len(g), "ba": g.ba.mean(), **{f"j_{k}": v for k, v in mean_ci(g.j.dropna()).items() if k != "n"},
-                     "tokens_median": g.n_tokens.median(), **{f"s_{k}": v for k, v in mean_ci(g.s.dropna()).items() if k != "n"}})
+        rows.append({"condition": cond, "n": len(g), "ba": g.ba.mean(),
+                     **{f"j_{k}": v for k, v in condition_ci(df, "j", cond).items() if k != "n"},
+                     "tokens_median": g.n_tokens.median(),
+                     **{f"s_{k}": v for k, v in condition_ci(df, "s", cond).items() if k != "n"}})
     return pd.DataFrame(rows)
 
 
@@ -255,16 +278,27 @@ def export_explorer_data(df: pd.DataFrame, path: Path) -> None:
     path.write_text(json.dumps({"half_life_default": config.HALF_LIFE_TOKENS, "latents": latents}))
 
 
-def api_usage(log_glob: str) -> dict:
-    """OpenRouter calls and cost summed from the META lines of the run logs (logs/ is local;
-    the totals are written into numbers.json so a fresh clone still has them)."""
+def api_usage(log_glob: str, previous: dict | None = None) -> dict:
+    """OpenRouter calls, cost and serving providers summed from the META lines of the run logs.
+    logs/ is not in git, so when no logged call matches, `previous` (the committed numbers.json
+    value) is returned instead of zeros; a fresh clone's `analyze` keeps the real totals.
+    Providers are counted per output: "explain" until scoring.py logs "score -> <file>.jsonl:",
+    then that file's stem (no dot, so templates can address it as a dotted path)."""
     calls, cost, tokens = 0, 0.0, 0
+    providers: defaultdict[str, Counter] = defaultdict(Counter)
     for path in sorted(config.LOG_DIR.glob(log_glob)):
+        section = "explain"
         for line in path.open(encoding="utf-8"):
+            if "score -> " in line:
+                section = line.split("score -> ", 1)[1].split(":", 1)[0].removesuffix(".jsonl")
             if " META [" in line and "usage=" in line:
                 usage = json.loads(line.split("usage=", 1)[1])
                 calls, cost, tokens = calls + 1, cost + usage.get("cost", 0.0), tokens + usage.get("total_tokens", 0)
-    return {"calls": calls, "cost_usd": cost, "total_tokens": tokens}
+                providers[section][line.split("provider=", 1)[1].split(" usage=", 1)[0]] += 1
+    if calls == 0 and previous:
+        return previous
+    return {"calls": calls, "cost_usd": cost, "total_tokens": tokens,
+            "providers": {k: dict(v.most_common()) for k, v in providers.items()}}
 
 
 def neuronpedia_zero_rows() -> dict:
@@ -277,21 +311,34 @@ def neuronpedia_zero_rows() -> dict:
     return {"n_latents": len(latents), "rows": len(texts), "distinct_texts": len(set(texts))}
 
 
+def generated_summary(path: Path) -> dict:
+    """How many Exp 2 explanations were generated and how many delphi could parse."""
+    rows = [json.loads(line) for line in path.open(encoding="utf-8")] if path.exists() else []
+    return {"n": len(rows), "parsed": sum(r["parsed"] for r in rows)}
+
+
 def data_summary() -> dict:
     samples = json.loads((config.PROCESSED_DIR / "samples.json").read_text())
     from .negatives import load_report  # avoid importing torch/sae_lens just for analysis
-    return {"n_latents_total": samples["n_latents"], "n_eligible": samples["n_eligible"],
-            "eligible_pct": 100 * samples["n_eligible"] / samples["n_latents"], "negatives": load_report(),
+    n = samples["n_latents"]
+    # How many latents pass each eligibility filter on its own (data.prepare); n_eligible passes all.
+    filters = {k: {"n": v, "pct": 100 * v / n} for k, v in samples.get("filters", {}).items()}
+    return {"n_latents_total": n, "n_eligible": samples["n_eligible"],
+            "eligible_pct": 100 * samples["n_eligible"] / n, "filters": filters, "negatives": load_report(),
             "neuronpedia_zero_rows": neuronpedia_zero_rows()}
 
 
 def run_analysis(sample: str = "main") -> dict:
     out_dir = config.RESULTS_DIR / sample
     df = load_scores(out_dir / "scores.jsonl")
+    old_path = out_dir / "numbers.json"
+    previous = json.loads(old_path.read_text()).get("api_usage", {}) if old_path.exists() else {}
     numbers = {
         "data": data_summary(),
-        "api_usage": {"score": api_usage(f"*score_{sample}.log"), "reliability": api_usage("*_reliability.log")},
+        "api_usage": {"score": api_usage(f"*score_{sample}.log", previous.get("score")),
+                      "reliability": api_usage("*_reliability.log", previous.get("reliability"))},
         "n_latents": int(df.latent.nunique()), "n_explanations": int(len(df)),
+        "generated": generated_summary(out_dir / "generated_explanations.jsonl"),
         "sample_failure_rate": float(df.n_failed.sum() / (df.n_failed.sum() + df.n_valid.sum())),
         "flagged_explanations": int((df.n_failed > 0.2 * (df.n_failed + df.n_valid)).sum()),
         "half_life": config.HALF_LIFE_TOKENS,

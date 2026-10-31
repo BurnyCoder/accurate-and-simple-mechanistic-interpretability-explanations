@@ -1,8 +1,9 @@
 """Verified random negatives: OpenWebText windows on which a latent is exactly zero.
 
 Global context: detection scoring needs contexts where the latent does NOT fire. Paulo et al.
-(2024, App. D.5) and delphi's default sample them at random from the SAE's training
-distribution. Neuronpedia's export also has zero-activation rows, but the pilot showed they
+(2024, https://arxiv.org/abs/2410.13928, App. D.4) sample them at random from their activation
+corpus (App. D.5 discusses the limits of random negatives), and delphi's default
+`non_activating_source` is "random". Neuronpedia's export also has zero-activation rows, but the pilot showed they
 are overlapping sliding windows over a few documents shared by many latents (PREREG
 deviation 2). So here we run GPT-2 small and the exact same SAE (sae_lens release
 `gpt2-small-res-jb`) on random OpenWebText windows and keep, per latent, windows whose

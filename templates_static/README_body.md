@@ -29,7 +29,7 @@ flowchart LR
 
 ## Install and run
 
-You need Linux, or WSL2 on Windows (delphi depends on vLLM, which only installs on Linux), [uv](https://docs.astral.sh/uv/), an NVIDIA GPU for the `negatives` phase (GPT-2 small; 8 GB is plenty), and an [OpenRouter](https://openrouter.ai) API key.
+You need Linux, or WSL2 on Windows (delphi hard-depends on vLLM, which has [no native Windows support](https://docs.vllm.ai/en/latest/getting_started/installation/gpu.html)), [uv](https://docs.astral.sh/uv/), an NVIDIA GPU for the `negatives` phase (it ran on an 8 GB laptop GPU in about 3 minutes), and an [OpenRouter](https://openrouter.ai) API key.
 
 ```bash
 git clone https://github.com/BurnyCoder/accurate-and-simple-mechanistic-interpretability-explanations
@@ -54,7 +54,13 @@ uv run python run.py --phase reliability
 uv run python run.py --phase analyze --sample main
 ```
 
-`analyze` alone regenerates every table, figure and number in this README and the paper from the committed `results/` files, with no API calls. The processed data (`data/processed/`) and all results are committed, so the analysis reproduces without re-downloading or re-scoring.
+`analyze` alone regenerates every table, figure and number in this README and the paper from the committed `results/` files, with no API calls. The processed data (`data/processed/`) and all results are committed, so the analysis reproduces without re-downloading or re-scoring. The API-usage totals and provider counts are read from the run logs, which are not in git; they are kept in `numbers.json`, and the logs are on [Hugging Face](https://huggingface.co/datasets/BurnyCoder/length-penalized-autointerp-gpt2-small/tree/main/logs).
+
+The paper PDF is built from the rendered `paper/paper.md` with pandoc and xelatex:
+
+```bash
+bash scripts/build_paper.sh
+```
 
 ## Repository layout
 
@@ -69,13 +75,14 @@ uv run python run.py --phase analyze --sample main
 | `PREREG.md` | Pre-registration (committed before any results) and its deviations. |
 | `templates/` | Sources of this README, `reports/` and `paper/`. Every number is a placeholder filled from `results/main/numbers.json`. |
 | `results/` | All scored explanations with per-context predictions. `pilot_discarded_old_negatives/` is the discarded first pilot. |
+| `scripts/` | `build_paper.sh` (PDF), `publish_hf.sh` (Hugging Face upload). |
 | `figures/`, `reports/`, `paper/`, `docs/` | Figures, experiment reports, paper (Markdown + PDF), GitHub Pages explorer + methodology. |
 
 ## Technologies
 
 - [delphi](https://github.com/EleutherAI/delphi), pinned to commit `4fea06e`: detection scorer, explainer, OpenRouter client, metrics.
 - [sae_lens](https://github.com/jbloomAus/SAELens) and [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens): GPT-2 small and the SAE.
-- [OpenRouter](https://openrouter.ai): Llama-3.1-70B-Instruct, pinned to the DeepInfra provider, with Llama-3.3-70B as the alternative scorer.
+- [OpenRouter](https://openrouter.ai): Llama-3.1-70B-Instruct, pinned to the DeepInfra provider (fp8 per [OpenRouter's endpoint list](https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints), checked 2026-10-31), with Llama-3.3-70B as the alternative scorer.
 - [tiktoken](https://github.com/openai/tiktoken) (`o200k_base`) for lengths.
 - [Neuronpedia](https://www.neuronpedia.org) exports and [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext) for data.
 - pandas, SciPy, matplotlib for analysis; pytest for tests; uv for the environment.

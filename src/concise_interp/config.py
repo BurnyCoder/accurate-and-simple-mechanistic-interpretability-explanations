@@ -56,10 +56,12 @@ EXPLAINER_MODEL = os.getenv("EXPLAINER_MODEL", "meta-llama/llama-3.1-70b-instruc
 ALT_SCORER_MODEL = "meta-llama/llama-3.3-70b-instruct"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-# Pin the main model to one provider (DeepInfra serves Llama-3.1-70B in fp8) so all calls hit
-# the same weights/quantisation; no fallbacks, failed calls are retried instead.
+# Pin the main model to one provider so all calls hit the same weights/quantisation; no
+# fallbacks, failed calls are retried instead. DeepInfra serves Llama-3.1-70B in fp8 (OpenRouter
+# endpoints API, checked 2026-10-31:
+# https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints).
 MAIN_PROVIDER = {"order": ["DeepInfra"], "allow_fallbacks": False}
-N_EXAMPLES_SHOWN = 5  # Paulo et al. show the scorer 5 shuffled examples per prompt
+N_EXAMPLES_SHOWN = 5  # Paulo et al. (App. D.1-D.2) show 5 shuffled examples per prompt; delphi's own default is 1
 SHUFFLE_SEED = 42  # delphi's Classifier default seed
 RETEST_SHUFFLE_SEED = 43
 MAX_RETRIES = 8
