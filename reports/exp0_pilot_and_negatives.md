@@ -17,7 +17,7 @@
 | Prompts and responses logged in full | Yes (`logs/*_score_pilot.log`; uploaded with the dataset) |
 | Scorer answers parse as `[0,1,…]` lists | Failure rate 0.00% of samples in the final pilot |
 | Explainer follows the word budgets | Median tokens ~2 words: 3, ~10 words: 12, ~40 words: 46.5 |
-| API cost of the final pilot | US$0.64 for 2060 calls (this total includes the discarded first pilot run, which used the same log name) |
+| API cost of both pilot runs | US$0.64 for 2060 calls, summed over the discarded first run and the final run (both logged as `*_score_pilot.log`) |
 | **Negatives are diverse** | **No.** Neuronpedia's zero-activation rows are sliding windows over a few documents (see below) |
 
 ## Issue found: Neuronpedia's zero-activation rows are not random negatives
@@ -26,7 +26,7 @@ Reading the logged scorer prompts showed the same sentence again and again among
 
 Detection scoring measures precision only through its negatives. With nearly duplicate negatives, broad explanations would be penalized too little, and broad explanations are the very ones a length factor interacts with.
 
-**Fix (PREREG deviation 2, recorded before any main results).** We switched to verified random negatives, the approach in delphi's default and in Paulo et al.:
+**Fix (PREREG deviation 2, recorded before any main results).** We switched to verified random negatives, as in delphi's default (`non_activating_source = "random"`) and in Paulo et al. (App. D.4):
 
 1. GPT-2 small and the *same* SAE (sae_lens `gpt2-small-res-jb`, `blocks.6.hook_resid_pre`) run on 4000 random windows from Skylion007/openwebtext. Each window is one per document, 64 tokens of context, of which the last 17 are shown.
 2. A window counts as a negative for a latent if the latent's activation is exactly 0 at all 17 displayed tokens. Each latent had at least 2674 such windows (median 3966), and 25 are sampled per latent.
@@ -42,7 +42,7 @@ With verified negatives, the final pilot's random control scored J = -0.024, abo
 
 | Issue | Cause | Fix and why |
 |---|---|---|
-| `delphi` would not install on Windows | It hard-depends on `vllm` (Linux only), and `delphi/clients/__init__.py` imports it eagerly | Run under WSL2 Ubuntu. Not vendoring delphi's code keeps the base method exactly as published. |
+| `delphi` would not install on Windows | It hard-depends on `vllm>=0.10.2`, which has [no native Windows support](https://docs.vllm.ai/en/latest/getting_started/installation/gpu.html), and `delphi/clients/__init__.py` imports `offline.py`, which imports vLLM at module level | Run under WSL2 Ubuntu. Not vendoring delphi's code keeps the base method exactly as published. |
 | Every Python start took minutes | The venv was on `/mnt/c`, and WSL reads the Windows drive over the slow 9p protocol; torch and vLLM are thousands of files | Keep the venv on ext4 (`UV_PROJECT_ENVIRONMENT=~/.venvs/concise-interp`); the project stays on the Windows drive. |
 | delphi 0.1.3 on PyPI misreports failures | `compute_confusion` returns `failed_count = len(df_valid) - total` (always 0); its explanation parser grabs everything after the first `[EXPLANATION]:` | Pinned delphi to GitHub main commit `4fea06e`, which fixes both. |
 | `delphi.log.result_analysis` import error | It imports plotly at module level (the `visualize` extra) | Depend on `eai-delphi[visualize]`. |
