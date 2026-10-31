@@ -43,7 +43,8 @@ def n_chars(text: str) -> int:
 
 
 def youden_j(balanced_accuracy: float) -> float:
-    """Youden's J = TPR + TNR - 1 = 2*BA - 1, so chance is 0 and perfect is 1."""
+    """Youden's J = TPR + TNR - 1 = 2*BA - 1, so chance is 0 and perfect is 1
+    (Youden 1950, https://doi.org/10.1002/1097-0142(1950)3:1<32::AID-CNCR2820030106>3.0.CO;2-3)."""
     return 2.0 * balanced_accuracy - 1.0
 
 
