@@ -5,7 +5,7 @@
 
 **Length-penalized detection scoring for sparse-autoencoder (SAE) feature explanations: a score that rewards explanations for being both accurate and short.**
 
-Detection scoring ([Paulo et al. 2024](https://arxiv.org/abs/2410.13928)) is a widely used way to score SAE feature explanations. It is implemented in EleutherAI's [delphi](https://github.com/EleutherAI/delphi), and SAEBench's autointerp metric is a detection-style score modelled on it ([Karvonen et al. 2025](https://arxiv.org/abs/2503.09532), §3.2.2). An LLM gets only the explanation and must say which of 5 text snippets the feature fires on. That score rewards accuracy only; Paulo et al. note that "current scoring methods do not account for interpretation length" (§5). This repo adds one factor:
+Detection scoring ([Paulo et al. 2024](https://arxiv.org/abs/2410.13928)) is a widely used way to score SAE feature explanations. It is implemented in EleutherAI's [delphi](https://github.com/EleutherAI/delphi), and SAEBench's autointerp metric is a detection-style score similar to it ([Karvonen et al. 2025](https://arxiv.org/abs/2503.09532), §3.2.2). An LLM gets only the explanation and must say which of 5 text snippets the feature fires on. That score rewards accuracy only; Paulo et al. note that "current scoring methods do not account for interpretation length" (§5). This repo adds one factor:
 
 ```
 S = max(J, 0) · 2^(−L / H)

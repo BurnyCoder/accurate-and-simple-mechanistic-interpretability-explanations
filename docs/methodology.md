@@ -14,7 +14,7 @@ Auto-interpretability scores an SAE latent's natural-language explanation by che
 We use **detection scoring**, through EleutherAI's [delphi](https://github.com/EleutherAI/delphi) library (Apache-2.0), with its prompt, few-shot examples, parser and metric code unchanged.
 
 - SAEBench, a standardized SAE benchmark suite ([Karvonen et al. 2025](https://arxiv.org/abs/2503.09532)), uses a detection-style autointerp metric similar to it, with gpt-4o-mini as the judge (§3.2.2).
-- A 2026 study of autointerp pipelines ([van der Ben et al. 2026](https://arxiv.org/abs/2607.19386)) found it the most stable of the four autointerp metrics it compared.
+- A 2026 study of autointerp pipelines ([van der Ben et al. 2026](https://arxiv.org/abs/2607.19386)) found it the most stable of the four autointerp metrics it compared, on two subject models.
 - It is at least 5× cheaper than all-at-once simulation, which needs prompt-token logprobs (Paulo et al., §4.1, Table 1).
 
 Because the scorer sees non-activating contexts too, detection measures both precision and recall of an explanation (Paulo et al., §3.3.1).

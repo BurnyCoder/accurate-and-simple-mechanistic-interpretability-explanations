@@ -49,7 +49,7 @@ def youden_j(balanced_accuracy: float) -> float:
 
 
 def length_factor(length: float, half_life: float) -> float:
-    """2^(-L/H); H = inf turns the factor off and recovers plain detection scoring."""
+    """2^(-L/H); H = inf turns the factor off, leaving S = max(J, 0) (detection scoring clipped at 0)."""
     if math.isinf(half_life):
         return 1.0
     return 2.0 ** (-length / half_life)
