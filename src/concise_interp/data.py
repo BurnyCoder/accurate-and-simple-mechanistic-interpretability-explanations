@@ -81,6 +81,14 @@ def count_examples(paths: list[Path]) -> dict[int, tuple[int, int]]:
     return {k: (a, z) for k, (a, z) in counts.items()}
 
 
+def filter_counts(explanations: dict[int, list[dict]], counts: dict[int, tuple[int, int]]) -> dict[str, int]:
+    """How many latents pass each eligibility filter on its own (reported next to the joint pass)."""
+    both = sum({"gpt35", "gpt4omini"} <= {e["source"] for e in explanations.get(k, [])} for k in counts)
+    return {"both_llm_explanations": both,
+            "min_activating": sum(a >= config.MIN_ACTIVATING for a, _ in counts.values()),
+            "min_zero_rows": sum(z >= config.MIN_ZERO for _, z in counts.values())}
+
+
 def eligible_latents(explanations: dict[int, list[dict]], counts: dict[int, tuple[int, int]]) -> list[int]:
     """PREREG eligibility: both LLM explanations, >=45 activating rows, >=25 zero rows,
     and not one of delphi's few-shot latents."""
@@ -133,7 +141,8 @@ def prepare() -> dict:
         for latent in sorted(chosen):
             f.write(json.dumps({"latent": latent, "explanations": explanations[latent],
                                 "rows": rows[latent]}) + "\n")
-    summary = {"n_latents": len(counts), "n_eligible": len(eligible), "samples": samples}
+    summary = {"n_latents": len(counts), "n_eligible": len(eligible),
+               "filters": filter_counts(explanations, counts), "samples": samples}
     (config.PROCESSED_DIR / "samples.json").write_text(json.dumps(summary, indent=1))
     return summary
 

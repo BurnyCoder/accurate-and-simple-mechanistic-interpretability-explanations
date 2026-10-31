@@ -1,6 +1,11 @@
 {
  "n_latents": 24576,
  "n_eligible": 17226,
+ "filters": {
+  "both_llm_explanations": 24558,
+  "min_activating": 20309,
+  "min_zero_rows": 21364
+ },
  "samples": {
   "main": [
    56,
