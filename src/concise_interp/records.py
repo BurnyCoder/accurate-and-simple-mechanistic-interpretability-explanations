@@ -1,9 +1,10 @@
 """Neuronpedia activation rows -> delphi `LatentRecord` (PREREG section 3).
 
 Global context: Neuronpedia exports, per latent, activating 17-token contexts (top and
-quantile examples; at least 45 for an eligible latent) and 25 contexts where the latent is
-exactly 0. delphi's scorers consume `LatentRecord.test` (activating) and
-`LatentRecord.not_active` (non-activating), and its explainers consume `LatentRecord.train`.
+quantile examples; at least 45 for an eligible latent) and contexts where the latent is
+exactly 0 (at least 25 for an eligible latent). delphi's scorers consume `LatentRecord.test`
+(activating) and `LatentRecord.not_active` (non-activating), and its explainers consume
+`LatentRecord.train`.
 This module does that conversion with the pre-registered split. The positives come straight
 from the export; the negatives are the verified OpenWebText windows from negatives.py.
 """
