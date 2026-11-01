@@ -56,5 +56,6 @@ Under S, the baseline (0.365) is not distinguishable from gpt-3.5-turbo (0.341; 
 ## Interpretation and limitations
 
 - The base scorer passes its sanity check: J separates real explanations from unrelated ones.
-- Neuronpedia's explainers saw the top activations. Holding out the 20 strongest contexts reduces but cannot rule out overlap with our test positives. The Exp 2 explanations are fully held out.
-- 50 test contexts per explanation make single-explanation J noisy, so the conclusions rest on means over 200 latents.
+- Neuronpedia's explainers saw the top activations. Holding out the 20 strongest contexts reduces but cannot rule out overlap with our test positives. The Exp 2 explainer saw only the 20 train contexts; 0.7% of test positives share a run of at least 8 tokens with one of them.
+- 50 test contexts per explanation make single-explanation J noisy (within-latent split-half Spearman 0.66; [reliability](reliability.md)), so the conclusions rest on means over 200 latents.
+- Llama-3.1-70B both wrote the Exp 2 explanations and scored everything, so comparisons between Exp 2 and Neuronpedia explanations may favour Exp 2.

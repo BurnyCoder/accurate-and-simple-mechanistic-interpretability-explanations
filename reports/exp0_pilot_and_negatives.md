@@ -26,17 +26,28 @@ Reading the logged scorer prompts showed the same sentence again and again among
 
 Detection scoring measures precision only through its negatives. With nearly duplicate negatives, broad explanations would be penalized too little, and broad explanations are the very ones a length factor interacts with.
 
-**Fix (PREREG deviation 2, recorded before any main results).** We switched to verified random negatives, as in delphi's default (`non_activating_source = "random"`) and in Paulo et al. (App. D.4):
+**Fix (PREREG deviation 2, recorded before any main results, after the first pilot's results; see below).** We switched to verified random negatives, as in delphi's default (`non_activating_source = "random"`) and in Paulo et al. (App. D.4):
 
 1. GPT-2 small and the *same* SAE (sae_lens `gpt2-small-res-jb`, `blocks.6.hook_resid_pre`) run on 4000 random windows from Skylion007/openwebtext. Each window is one per document, 64 tokens of context, of which the last 17 are shown.
 2. A window counts as a negative for a latent if the latent's activation is exactly 0 at all 17 displayed tokens. Each latent had at least 2674 such windows (median 3966), and 25 are sampled per latent.
 
 **Validation of this setup:**
 
-- **Token format.** 100% of Neuronpedia's token strings map back to GPT-2 token ids when the format is assumed to be raw byte-level BPE with `Ġ` shown as a space. So negatives are rendered in exactly the format of the positives, and the scorer cannot tell them apart by formatting.
+- **Token format.** 100% of Neuronpedia's token strings map back to GPT-2 token ids when the format is assumed to be raw byte-level BPE with `Ġ` shown as a space. So negatives are rendered in exactly the format of the positives, and the scorer cannot tell them apart by formatting (one content difference remains; see below).
 - **Same SAE.** Re-running 152 of Neuronpedia's top activating windows through our model+SAE (BOS + 17 tokens; the export lacks the longer original context) reproduces the exported maximum activations with Pearson r = 0.988. The maximum falls on the same token in 99.3% of windows, and the latent is active in 100% of them.
 
 With verified negatives, the final pilot's random control scored J = -0.024, about chance. The first pilot run (with Neuronpedia's zero rows) is kept, unused, in `results/pilot_discarded_old_negatives/`.
+
+**What was seen before the switch.** The fix was not blind to results. The first pilot run had already been scored and analysed when the switch was decided:
+
+| pilot run (10 latents) | random-control J | H1 | H2 | H3 | H4 |
+|---|---:|---|---|---|---|
+| first, Neuronpedia zero rows (discarded) | +0.084 | False | False | False | False |
+| final, verified random negatives | -0.024 | True | False | False | True |
+
+The switch was prompted by the duplicate sentences in the logged prompts, and it matches delphi's default and Paulo et al.'s random negatives. A random control above chance means the scorer separates positives from negatives without a relevant explanation, which points to the negatives. Still, a reader should know that H1 and H4 changed from failing to holding on these 10 latents, and that the main run started only after the switch: the deviation's commit (`393e156`) predates the earliest `time` field in `results/main/scores.jsonl`.
+
+**Remaining difference between positives and negatives.** Neuronpedia's windows can cross document boundaries, so 8.3% of the main run's test positives contain `<|endoftext|>`. Our negatives are single windows inside one document and contain it 0% of the time. The scorer does not use it as a cue: given the random control's unrelated explanations, it says "yes" to 13.5% of those positives and to 12.4% of the others. Re-running H1–H4 without them gives the same verdicts (paper §4.5).
 
 ## Other issues fixed during setup (learnings)
 

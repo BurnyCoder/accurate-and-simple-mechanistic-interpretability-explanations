@@ -127,3 +127,5 @@ No latents are added after results are seen. Calls that failed because of API er
    - Tokens are displayed in Neuronpedia's format, so positives and negatives cannot be told apart by formatting.
    - Unchanged: the positives, the latent samples and every analysis. The ≥25-zero-row eligibility filter is kept so the drawn samples stay identical.
    - The pilot is re-run with the new negatives. Its first run is discarded.
+
+**Clarification added 2026-11-01, after all results (audit).** This note changes no hypothesis, metric or analysis. Deviation 2 was not blind to results: the first pilot run had already been scored and analysed when the negatives were changed. With the old negatives, the random control scored above chance, and H1 and H4 failed on those 10 latents; with the new negatives, both held. The numbers are in `reports/exp0_pilot_and_negatives.md` and Appendix A of the paper. The main run started only after this deviation was committed. The audit also found that the new negatives differ from the positives in one content respect: only positives can contain `<|endoftext|>`. H1–H4 give the same verdicts without those positives (paper §4.5).

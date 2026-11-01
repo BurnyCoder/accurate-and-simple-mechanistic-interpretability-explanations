@@ -9,7 +9,7 @@
 - **Explainer:** Llama-3.1-70B-Instruct (OpenRouter, DeepInfra, temperature 0) with delphi's `DefaultExplainer` prompt: its system prompt, 3 few-shot examples, and the latent's 20 strongest contexts with `<<highlighted>>` tokens and activation values.
 - **Budgets:** one sentence was appended: "Your final explanation (the [EXPLANATION]: line) must be approximately B words long", for B ∈ {2, 5, 10, 20, 40}. One unconstrained explanation used delphi's prompt unchanged.
 - **Volume:** {{generated.n}} explanations (6 per latent × {{n_latents}} latents), of which {{generated.parsed}} parsed.
-- **Test set:** the test contexts are disjoint from the 20 the explainer saw, so these explanations are fully held out.
+- **Test set:** no test context is one of the 20 the explainer saw. {{checks.train_overlap.n}} of {{checks.n_test_positives}} test positives ({{checks.train_overlap.pct:.1f}}%, in {{checks.train_overlap.n_latents}} latents) share a run of at least {{checks.train_overlap.min_shared_tokens}} consecutive tokens with a train context, i.e. come from the same passage; the rest are fully held out.
 - **Budget choice:** pre-registered (PREREG section 5), spaced roughly geometrically from 2 to 40 words. The observed medians run from {{by_condition.gen_b2.tokens_median:.0f}} to {{by_condition.gen_b40.tokens_median:.0f}} tokens, which brackets Neuronpedia's explanations (median {{by_condition.gpt4omini.tokens_median:.0f}} tokens) and delphi's unconstrained output (median {{by_condition.gen_unconstrained.tokens_median:.0f}} tokens).
 
 **Manipulation check (median tokens):**
@@ -55,10 +55,12 @@ At H = 40 the budget with the highest mean S is ~{{exploratory.h_sweep.40.best_b
 
 At H = 80 it is ~{{exploratory.h_sweep.80.best_budget_words}} words:
 
-- vs ~2 words: {{exploratory.h_sweep.80.tests.best_minus_gen_b2.mean:+.3f}} [{{exploratory.h_sweep.80.tests.best_minus_gen_b2.lo:+.3f}}, {{exploratory.h_sweep.80.tests.best_minus_gen_b2.hi:+.3f}}], p = {{exploratory.h_sweep.80.tests.best_minus_gen_b2.p_greater:.3f}} (the bootstrap CI excludes 0, the Wilcoxon test is borderline);
+- vs ~2 words: {{exploratory.h_sweep.80.tests.best_minus_gen_b2.mean:+.3f}} [{{exploratory.h_sweep.80.tests.best_minus_gen_b2.lo:+.3f}}, {{exploratory.h_sweep.80.tests.best_minus_gen_b2.hi:+.3f}}], p = {{exploratory.h_sweep.80.tests.best_minus_gen_b2.p_greater:.4f}} (the bootstrap CI excludes 0, but the Wilcoxon test does not reach 0.05);
 - vs ~40 words: {{exploratory.h_sweep.80.tests.best_minus_gen_b40.mean:+.3f}} [{{exploratory.h_sweep.80.tests.best_minus_gen_b40.lo:+.3f}}, {{exploratory.h_sweep.80.tests.best_minus_gen_b40.hi:+.3f}}], p = {{exploratory.h_sweep.80.tests.best_minus_gen_b40.p_greater:.1e}}.
 
-These comparisons were chosen after seeing the data and are not corrected for multiplicity, so they are hypotheses for a future pre-registered test, not confirmed findings.
+These comparisons were chosen after seeing the data, and the budget tested at each H is the one with the highest mean, which favours it. They are not corrected for multiplicity, so they are hypotheses for a future pre-registered test, not confirmed findings.
+
+**Per latent (exploratory).** H3 is about mean S. Per latent at H = 20, the ~2-word explanation has the highest S for {{exploratory.per_latent_best_budget.gen_b2}} of {{n_latents}} latents, ~5 words for {{exploratory.per_latent_best_budget.gen_b5}}, ~10 for {{exploratory.per_latent_best_budget.gen_b10}}, ~20 for {{exploratory.per_latent_best_budget.gen_b20}} and ~40 for {{exploratory.per_latent_best_budget.gen_b40}}. Single-explanation scores are noisy ([reliability](reliability.md)), so part of this spread is measurement noise.
 
 ![H sweep](../figures/fig4_h_sweep.png)
 
@@ -73,7 +75,9 @@ These comparisons were chosen after seeing the data and are not corrected for mu
 - **Accuracy loss:** J drops by {{H4.j_loss_argmaxJ_minus_argmaxS.mean:.3f}} [{{H4.j_loss_argmaxJ_minus_argmaxS.lo:.3f}}, {{H4.j_loss_argmaxJ_minus_argmaxS.hi:.3f}}] (criterion: ≤ 0.05).
 - **Versus shortest:** argmax-S beats argmin-L by {{H4.argmaxS_minus_argminL.mean:.3f}} [{{H4.argmaxS_minus_argminL.lo:.3f}}, {{H4.argmaxS_minus_argminL.hi:.3f}}] J (criterion: CI > 0).
 
-All three pre-registered criteria hold. Which candidates got picked (counts over {{H4.n_selections}} selections: 2 halves × {{n_latents}} latents):
+All three pre-registered criteria hold. They also hold in {{exploratory.h4_split_sensitivity.n_supported}} of {{exploratory.h4_split_sensitivity.n_splits}} other random half-splits (exploratory): J loss {{exploratory.h4_split_sensitivity.j_loss.min:.3f}}–{{exploratory.h4_split_sensitivity.j_loss.max:.3f}}, length reduction {{exploratory.h4_split_sensitivity.length_reduction.min:.0%}}–{{exploratory.h4_split_sensitivity.length_reduction.max:.0%}} (mean {{exploratory.h4_split_sensitivity.length_reduction.mean:.0%}}), margin over the shortest {{exploratory.h4_split_sensitivity.s_minus_shortest.min:.3f}}–{{exploratory.h4_split_sensitivity.s_minus_shortest.max:.3f}}.
+
+Which candidates got picked (counts over {{H4.n_selections}} selections: 2 halves × {{n_latents}} latents):
 
 - argmax J: ~2 words {{H4.picked_counts.argmax_j.gen_b2}}, ~5 {{H4.picked_counts.argmax_j.gen_b5}}, ~10 {{H4.picked_counts.argmax_j.gen_b10}}, ~20 {{H4.picked_counts.argmax_j.gen_b20}}, ~40 {{H4.picked_counts.argmax_j.gen_b40}}, unconstrained {{H4.picked_counts.argmax_j.gen_unconstrained}}, gpt-3.5 {{H4.picked_counts.argmax_j.gpt35}}, gpt-4o-mini {{H4.picked_counts.argmax_j.gpt4omini}}.
 - argmax S: ~2 words {{H4.picked_counts.argmax_s.gen_b2}}, ~5 {{H4.picked_counts.argmax_s.gen_b5}}, ~10 {{H4.picked_counts.argmax_s.gen_b10}}, ~20 {{H4.picked_counts.argmax_s.gen_b20}}, ~40 {{H4.picked_counts.argmax_s.gen_b40}}, unconstrained {{H4.picked_counts.argmax_s.gen_unconstrained}}, gpt-3.5 {{H4.picked_counts.argmax_s.gpt35}}, gpt-4o-mini {{H4.picked_counts.argmax_s.gpt4omini}}.
@@ -85,5 +89,5 @@ Plain J often picks short explanations too, likely because ties are broken towar
 ## Takeaways
 
 1. The length factor does what it is designed to do at the level of choosing an explanation per latent: much shorter picks for little accuracy (H4).
-2. Averaged over latents, the pre-registered H = 20 is too harsh to make anything but the shortest budget optimal (H3 falsified). H is a value judgement. In the post-hoc sweep, ~10 words ties ~2 words at H = 40 and is nominally ahead at H = 80 (one-sided p = {{exploratory.h_sweep.80.tests.best_minus_gen_b2.p_greater:.3f}}).
+2. Averaged over latents, the pre-registered H = 20 is too harsh to make anything but the shortest budget optimal (H3 falsified). H is a value judgement. In the post-hoc sweep, ~10 words ties ~2 words at H = 40 and has a higher but not significantly higher mean at H = 80 (one-sided p = {{exploratory.h_sweep.80.tests.best_minus_gen_b2.p_greater:.4f}}).
 3. For these GPT-2 layer-6 latents, a ~2-word explanation from a strong explainer already reaches most of the J of a ~40-word one: {{H2.j_by_budget.gen_b2.mean:.3f}} vs {{H2.j_by_budget.gen_b40.mean:.3f}}.

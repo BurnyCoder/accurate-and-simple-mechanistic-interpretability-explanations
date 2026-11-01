@@ -77,3 +77,4 @@ H_SWEEP = (5.0, 10.0, 20.0, 40.0, 80.0, math.inf)
 # --- Analysis.
 N_BOOTSTRAP = 10_000
 SEED_ANALYSIS = 0
+N_H4_SPLITS = 20  # exploratory: H4 re-run on this many random cross-fit splits (seed 0 = pre-registered)

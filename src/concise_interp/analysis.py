@@ -46,12 +46,21 @@ def explanation_metrics(row: dict, half_life: float, ids: set[str] | None = None
             "n_valid": valid, "n_failed": int(conf["failed_count"])}
 
 
-def load_scores(path: Path, half_life: float = config.HALF_LIFE_TOKENS) -> pd.DataFrame:
+def scores_frame(rows: list[dict], half_life: float = config.HALF_LIFE_TOKENS) -> pd.DataFrame:
     """One row per (latent, condition) with raw samples and metrics at the default H."""
-    rows = [json.loads(line) for line in path.open(encoding="utf-8")]
-    df = pd.DataFrame(rows)
     metrics = pd.DataFrame([explanation_metrics(r, half_life) for r in rows])
-    return pd.concat([df, metrics], axis=1)
+    return pd.concat([pd.DataFrame(rows), metrics], axis=1)
+
+
+def load_scores(path: Path, half_life: float = config.HALF_LIFE_TOKENS) -> pd.DataFrame:
+    return scores_frame([json.loads(line) for line in path.open(encoding="utf-8")], half_life)
+
+
+def without_samples(df: pd.DataFrame, drop: dict[int, set[str]]) -> pd.DataFrame:
+    """The same explanations with some test samples removed (per latent, by id), metrics recomputed."""
+    rows = [r | {"samples": [s for s in r["samples"] if s["id"] not in drop.get(r["latent"], set())]}
+            for r in df[["latent", "condition", "explanation", "samples"]].to_dict("records")]
+    return scores_frame(rows)
 
 
 def with_half_life(df: pd.DataFrame, half_life: float) -> pd.Series:
@@ -177,9 +186,9 @@ def crossfit_selection(df: pd.DataFrame, halves: dict, half_life: float) -> pd.D
     return pd.DataFrame(out)
 
 
-def h4(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS) -> dict:
+def h4(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS, seed: int = config.SEED_ANALYSIS) -> dict:
     cands = df[df.condition.isin(CANDIDATES)]
-    sel = crossfit_selection(cands, crossfit_halves(df), half_life)
+    sel = crossfit_selection(cands, crossfit_halves(df, seed), half_life)
     j, length = wide(sel.rename(columns={"rule": "condition"}), "j"), wide(sel.rename(columns={"rule": "condition"}), "n_tokens")
     loss = (j["argmax_j"] - j["argmax_s"]).dropna()
     out = {"j": {r: mean_ci(j[r]) for r in j.columns},
@@ -197,6 +206,52 @@ def h4(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS) -> dict:
 
 
 # ---------- exploratory ----------
+
+def h4_split_sensitivity(df: pd.DataFrame, n_splits: int = config.N_H4_SPLITS) -> dict:
+    """H4 re-run on `n_splits` random half-splits (seeds 0..n-1; seed 0 is the pre-registered one):
+    how much the result depends on which contexts land in the selection half."""
+    runs = [h4(df, seed=seed) for seed in range(n_splits)]
+
+    def spread(values: list[float]) -> dict:
+        return {"mean": float(np.mean(values)), "min": float(np.min(values)), "max": float(np.max(values))}
+
+    return {"n_splits": n_splits, "n_supported": sum(r["supported"] for r in runs),
+            "j_loss": spread([r["j_loss_argmaxJ_minus_argmaxS"]["mean"] for r in runs]),
+            "length_reduction": spread([r["length_reduction"] for r in runs]),
+            "s_minus_shortest": spread([r["argmaxS_minus_argminL"]["mean"] for r in runs])}
+
+
+def best_budget_counts(s: pd.DataFrame) -> dict[str, int]:
+    """Per latent, the budget with the highest S; ties go to the shorter budget (idxmax takes the
+    first column). Counts per budget, over latents that have all five budgets."""
+    best = s[BUDGET_CONDITIONS].dropna().idxmax(axis=1)
+    return {c: int((best == c).sum()) for c in BUDGET_CONDITIONS}
+
+
+def robustness_without(df: pd.DataFrame, drop: dict[int, set[str]]) -> dict:
+    """H1-H4 re-run after dropping some test samples; returns the verdicts and headline means."""
+    d = without_samples(df, drop)
+    hyp = {"H1": h1(d), "H2": h2(d), "H3": h3(d), "H4": h4(d)}
+    return {"supported": {k: v["supported"] for k, v in hyp.items()},
+            "random_j": hyp["H1"]["random"]["mean"],
+            "s_by_budget": {c: v["mean"] for c, v in hyp["H3"]["s_by_budget"].items()},
+            "h4_j_loss": hyp["H4"]["j_loss_argmaxJ_minus_argmaxS"]["mean"],
+            "h4_length_reduction": hyp["H4"]["length_reduction"]}
+
+
+def data_checks(df: pd.DataFrame) -> dict:
+    """Test-set audits (checks.py) on the scored latents' splits, and H1-H4 without the test
+    positives that contain <|endoftext|> (a token our random negatives never contain)."""
+    from .checks import positive_rates, split_checks
+    from .data import load_processed
+    from .experiment import prepare_records  # loads torch via delphi's records
+
+    latents_data, _ = load_processed()
+    _, sample_ids, splits = prepare_records(latents_data, [int(x) for x in sorted(df.latent.unique())])
+    summary, eot_ids = split_checks(splits, sample_ids)
+    summary["eot"]["random_positive_rate"] = positive_rates(df, "random", eot_ids)
+    summary["without_eot_positives"] = robustness_without(df, eot_ids)
+    return summary
 
 def exploratory(df: pd.DataFrame) -> dict:
     j, s = wide(df, "j"), wide(df, "s")
@@ -220,7 +275,12 @@ def exploratory(df: pd.DataFrame) -> dict:
     def two_sided(w: pd.DataFrame, a: str, b: str) -> dict:
         return paired(w, a, b) | {"two_sided_p": float(stats.wilcoxon((w[a] - w[b]).dropna()).pvalue)}
 
+    best = best_budget_counts(s)
     return {
+        # Per-latent view of H3 (default H): mean S is monotone, but which budget wins for each latent?
+        "per_latent_best_budget": best,
+        "per_latent_best_intermediate": sum(best[f"gen_b{b}"] for b in (5, 10, 20)),
+        "h4_split_sensitivity": h4_split_sensitivity(df),
         "gpt4omini_minus_gpt35_J": two_sided(j, "gpt4omini", "gpt35"),
         "gpt4omini_minus_gpt35_S": two_sided(s, "gpt4omini", "gpt35"),
         # Post hoc: the top-token baseline against Neuronpedia's explanations (J, and S at H = 20).
@@ -237,12 +297,35 @@ def exploratory(df: pd.DataFrame) -> dict:
     }
 
 
-def reliability(main: pd.DataFrame, other: pd.DataFrame) -> dict:
-    m = main.merge(other, on=["latent", "condition"], suffixes=("", "_2"))
+def agreement(m: pd.DataFrame) -> dict:
+    """Spearman between two scorings (columns j/j_2, s/s_2) of the same explanations, pooled and
+    within latent. Pooled correlations include the spread between latents (some are simply easier
+    to detect), which inflates them; the within-latent one correlates each latent's values minus
+    that latent's mean, i.e. how well the scorings agree on which explanation of a latent is better."""
     out = {"n_explanations": int(len(m)), "n_latents": int(m.latent.nunique())}
     for col in ("j", "s"):
-        ok = m[col].notna() & m[f"{col}_2"].notna()
-        out[f"spearman_{col}"] = float(stats.spearmanr(m[col][ok], m[f"{col}_2"][ok]).statistic)
+        ok = m[m[col].notna() & m[f"{col}_2"].notna()]
+        centred = [ok[c] - ok.groupby("latent")[c].transform("mean") for c in (col, f"{col}_2")]
+        out[f"spearman_{col}"] = float(stats.spearmanr(ok[col], ok[f"{col}_2"]).statistic)
+        out[f"spearman_{col}_within"] = float(stats.spearmanr(*centred).statistic)
+    return out
+
+
+def split_half_reliability(df: pd.DataFrame, halves: dict, half_life: float = config.HALF_LIFE_TOKENS) -> dict:
+    """Agreement between J (and S) of each explanation on the two disjoint cross-fit halves of its
+    latent's contexts. The re-scorings reuse the same 50 contexts, so they miss the noise from which
+    contexts were drawn; this includes it, on 25 contexts per half (a lower bound for 50).
+    The random control is left out: its J is ~0 on both halves and adds only between-condition spread."""
+    rows = []
+    for r in df[df.condition != "random"].to_dict("records"):
+        a, b = (explanation_metrics(r, half_life, ids) for ids in halves[r["latent"]])
+        rows.append({"latent": r["latent"], "j": a["j"], "j_2": b["j"], "s": a["s"], "s_2": b["s"]})
+    return agreement(pd.DataFrame(rows))
+
+
+def reliability(main: pd.DataFrame, other: pd.DataFrame) -> dict:
+    m = main.merge(other, on=["latent", "condition"], suffixes=("", "_2"))
+    out = agreement(m)
     out["mean_s_by_budget_other"] = {c: float(other[other.condition == c].s.mean()) for c in BUDGET_CONDITIONS}
     # The main run's means on the same latents, so the re-scored means have a like-for-like reference.
     same = main[main.latent.isin(set(other.latent))]
@@ -346,6 +429,8 @@ def run_analysis(sample: str = "main") -> dict:
         "by_condition": condition_table(df).set_index("condition").to_dict("index"),  # for templates
         "H1": h1(df), "H2": h2(df), "H3": h3(df), "H4": h4(df), "exploratory": exploratory(df),
     }
+    numbers["checks"] = data_checks(df)
+    numbers["reliability_split_half"] = split_half_reliability(df, crossfit_halves(df))
     for name in ("retest", "altscorer"):
         path = out_dir / f"scores_{name}.jsonl"
         if path.exists():

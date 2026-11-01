@@ -45,5 +45,6 @@ Under S, the baseline ({{by_condition.top_token.s_mean:.3f}}) is not distinguish
 ## Interpretation and limitations
 
 - The base scorer passes its sanity check: J separates real explanations from unrelated ones.
-- Neuronpedia's explainers saw the top activations. Holding out the 20 strongest contexts reduces but cannot rule out overlap with our test positives. The Exp 2 explanations are fully held out.
-- 50 test contexts per explanation make single-explanation J noisy, so the conclusions rest on means over {{n_latents}} latents.
+- Neuronpedia's explainers saw the top activations. Holding out the 20 strongest contexts reduces but cannot rule out overlap with our test positives. The Exp 2 explainer saw only the 20 train contexts; {{checks.train_overlap.pct:.1f}}% of test positives share a run of at least {{checks.train_overlap.min_shared_tokens}} tokens with one of them.
+- 50 test contexts per explanation make single-explanation J noisy (within-latent split-half Spearman {{reliability_split_half.spearman_j_within:.2f}}; [reliability](reliability.md)), so the conclusions rest on means over {{n_latents}} latents.
+- Llama-3.1-70B both wrote the Exp 2 explanations and scored everything, so comparisons between Exp 2 and Neuronpedia explanations may favour Exp 2.

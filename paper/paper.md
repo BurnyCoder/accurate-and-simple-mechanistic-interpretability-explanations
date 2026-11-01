@@ -12,6 +12,10 @@ header-includes:
   - \newunicodechar{≤}{\ensuremath{\leq}}
   - \newunicodechar{≈}{\ensuremath{\approx}}
   - \newunicodechar{∈}{\ensuremath{\in}}
+# Figures stay where they are written: a figure left floating across a longtable made LaTeX drop
+# the text after it ("Overfull \vbox while \output is active"), which lost the Discussion heading.
+  - \usepackage{float}
+  - \floatplacement{figure}{H}
 ---
 
 <!-- Generated from templates/paper/paper.md by `run.py --phase analyze --sample main`.
@@ -30,7 +34,7 @@ We pre-registered four hypotheses. Results:
 
 - The scorer is valid. Random explanations score $J$ = -0.022; real ones 0.444–0.499.
 - Asking the same explainer for ~2 to ~40 words raises $J$ from 0.464 to 0.577, with diminishing returns.
-- Our primary hypothesis, an interior optimum of $S$ at the pre-registered $H = 20$, is **falsified**. Mean $S$ decreases monotonically with length, so on average the shortest explanations win. In an exploratory, post-hoc sweep, ~10-word explanations only tie the shortest at $H = 40$ and are nominally ahead at $H = 80$ (one-sided Wilcoxon $p$ = 0.050).
+- Our primary hypothesis, an interior optimum of $S$ at the pre-registered $H = 20$, is **falsified**. Mean $S$ decreases monotonically with length, so on average the shortest explanations win. In an exploratory, post-hoc sweep, ~10-word explanations only tie the shortest at $H = 40$; at $H = 80$ their mean is higher, but not significantly (one-sided Wilcoxon $p$ = 0.0505, uncorrected).
 - Used to choose among 8 candidate explanations per latent, with cross-fitted held-out evaluation, $S$ selects explanations 39% shorter than plain detection scoring does, at a cost of 0.031 $J$ [0.018, 0.046]. That is 0.146 $J$ better than simply picking the shortest.
 
 Under $S$, a top-token baseline (`the token "X"`) is not distinguishable from Neuronpedia's gpt-3.5-turbo or gpt-4o-mini explanations (post hoc; both paired 95% CIs include 0). Code, data, logs and pre-registration: <https://github.com/BurnyCoder/accurate-and-simple-mechanistic-interpretability-explanations>.
@@ -45,13 +49,13 @@ We make the smallest change that puts brevity into the objective. We multiply th
 
 $$S = \max(J, 0)\cdot 2^{-L/H},\qquad J = 2\,\mathrm{BA} - 1.$$
 
-Here BA is delphi's balanced accuracy and L is the explanation's length in tokens. In log space, $\log S = \log J - (\ln 2/H)\,L$: a constant cost per token. This is the two-part code of minimum description length ([Rissanen 1978](https://doi.org/10.1016/0005-1098(78)90005-5)), applied to the text explanation rather than to the SAE's latent code and decoder as in [Ayonrinde et al. 2024](https://arxiv.org/abs/2410.11179).
+Here BA is delphi's balanced accuracy and L is the explanation's length in tokens. In log space, $\log S = \log J - (\ln 2/H)\,L$: a constant cost per token. This is analogous to, not an instance of, the two-part code of minimum description length ([Rissanen 1978](https://doi.org/10.1016/0005-1098(78)90005-5)): the length term prices the explanation, but $-\log J$ is a fit penalty, not the code length of the data given the explanation. Ayonrinde et al. ([2024](https://arxiv.org/abs/2410.11179)) apply MDL to the SAE's latent code and decoder; we apply the same fit-plus-length idea to the text explanation.
 
 To keep custom work minimal, we use existing explanations and activation data from [Neuronpedia's](https://www.neuronpedia.org) public export for GPT-2 small, and delphi's scorer and explainer unchanged.
 
 # 2. Background: detection scoring
 
-For a latent and an explanation, the scorer LLM sees contexts in shuffled batches of 5 (Paulo et al., App. D.1). Some contexts contain the latent's activation and some do not. For each context it answers 1 or 0 ("does this context match the explanation?"). Paulo et al. use 100 activating contexts (10 per activation decile) and 100 random non-activating contexts (§4.2, App. D.4, D.6), with Llama-3.1-70B-Instruct quantized to 4 bits as both explainer and scorer (§3.2, App. F). Because non-activating contexts are included, the score reflects both recall (do activating contexts match?) and precision (do non-activating ones not match?) of the explanation (§3.3.1).
+For a latent and an explanation, the scorer LLM sees contexts in shuffled batches of 5 (Paulo et al., App. D.1). Some contexts contain the latent's activation and some do not. For each context it answers 1 or 0 ("does this context match the explanation?"). Paulo et al. use 100 activating contexts (10 per activation decile) and 100 random non-activating contexts (§4.2, App. D.4, D.6), with Llama-3.1-70B-Instruct as both explainer and scorer (§3.2, App. D.6; their App. F states 4-bit quantization for its experiments). Because non-activating contexts are included, the score reflects both recall (do activating contexts match?) and precision (do non-activating ones not match?) of the explanation (§3.3.1).
 
 We use delphi's `DetectionScorer` with its default prompt and three few-shot examples. Two of those examples are latents of the very SAE we study (6048 and 9396), so we exclude them; the third comes from the layer-8 SAE.
 
@@ -69,10 +73,10 @@ The half-life H is the exchange rate between accuracy and brevity. We pre-regist
 - **SAE and latents.** We use Joseph Bloom's residual-stream SAE for GPT-2 small ([Radford et al. 2019](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)) at layer 6 (`blocks.6.hook_resid_pre`, 24,576 latents with a ReLU encoder, sae_lens's `standard` architecture), as exported by Neuronpedia. A latent is eligible if it has explanations from both gpt-3.5-turbo and gpt-4o-mini, at least 45 activating 17-token contexts and at least 25 zero-activation rows in the export, and is not one of delphi's few-shot latents. Alone, these filters keep 99.9%, 82.6% and 86.9% of latents; together they leave 17226 of 24576 (70.1%). We sample 200 at random (seed 0).
 - **Contexts per latent.**
   - The 20 strongest contexts are reserved for the explainer.
-  - 25 test positives are drawn, 5 from each of 5 equal-count activation-quantile bins of the remaining contexts.
+  - 25 test positives are drawn, 5 from each of 5 equal-count activation-quantile bins of the remaining contexts. These are quantiles of the export's rows, which hold only fairly strong activations: every test positive reaches at least 10% of its latent's top exported activation (bin medians, strongest to weakest: 0.78, 0.63, 0.47, 0.32, 0.16). Paulo et al. sample deciles of the full activation distribution, so our detection task is easier and absolute $J$ is not comparable with theirs.
   - 25 negatives are drawn from 4000 random OpenWebText windows on which the latent's activation is exactly 0.
-- **Verifying the negatives.** We compute those activations with [sae_lens](https://github.com/jbloomAus/SAELens) and [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) on GPT-2 small. Re-running 152 of Neuronpedia's top-activating windows (BOS + the 17 exported tokens) reproduces the exported maxima (Pearson r = 0.988); the maximum falls on the same token in 99.3% of them. Negatives are displayed in Neuronpedia's exact token format (100% round-trip), so the format cannot reveal the label.
-- **Why not Neuronpedia's own zero rows.** Neuronpedia's zero-activation rows were our pre-registered negatives. A pilot showed they are near-duplicate sliding windows: 5250 rows but 2010 distinct texts. Their replacement was recorded as a deviation before any main results (Appendix A).
+- **Verifying the negatives.** We compute those activations with [sae_lens](https://github.com/jbloomAus/SAELens) and [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) on GPT-2 small. Re-running 152 of Neuronpedia's top-activating windows (BOS + the 17 exported tokens) reproduces the exported maxima (Pearson r = 0.988); the maximum falls on the same token in 99.3% of them. Negatives are displayed in Neuronpedia's exact token format (100% round-trip), so the format does not reveal the label. One content difference remains: 8.3% of test positives contain GPT-2's document separator `<|endoftext|>` (Neuronpedia's windows can cross documents), against 0% of negatives (each is one window inside one document). The scorer does not treat it as a cue: given the random control's unrelated explanations, it says "yes" to 13.5% of those positives and 12.4% of the others (§4.5 re-runs every hypothesis without them).
+- **Why not Neuronpedia's own zero rows.** Neuronpedia's zero-activation rows were our pre-registered negatives. A pilot showed they are near-duplicate sliding windows: 5250 rows but 2010 distinct texts. Their replacement was recorded as a deviation before any main results, but after the pilot's own results had been computed (Appendix A).
 
 **Conditions.**
 
@@ -139,7 +143,9 @@ Mean $S$ is 0.430, 0.395, 0.374, 0.278 and 0.123 for ~2 to ~40 words. Every inte
 
 The reason is quantitative. From ~2 to ~10 words mean $J$ grows by a factor of 1.18, while the length factor at the median lengths (2 → 11 tokens) falls to 0.73 of its value. The product is below 1, so the extra accuracy does not pay for the extra tokens (an approximation: mean $S$ is not exactly mean $J$ times the factor at the median length).
 
-In an exploratory, post-hoc sweep (Table 3, Fig. 4) the best budget is ~2 words for $H \leq 20$. At $H = 40$, ~10 words and ~2 words tie: +0.005 [-0.022, +0.032]. At $H = 80$, ~10 words is ahead of ~2 words by 0.041 [0.013, 0.069] (one-sided Wilcoxon $p$ = 0.050, so only nominally) and of ~40 words by 0.108 [0.087, 0.128] ($p$ = 4.8e-18). These comparisons were chosen after seeing the data and are not corrected for multiplicity.
+In an exploratory, post-hoc sweep (Table 3, Fig. 4) the best budget is ~2 words for $H \leq 20$. At $H = 40$, ~10 words and ~2 words tie: +0.005 [-0.022, +0.032]. At $H = 80$, ~10 words is ahead of ~2 words by 0.041 [0.013, 0.069] in mean: the bootstrap CI excludes 0, but the one-sided Wilcoxon test does not reach 0.05 ($p$ = 0.0505). It is ahead of ~40 words by 0.108 [0.087, 0.128] ($p$ = 4.8e-18). These comparisons were chosen after seeing the data, and the budget tested at each $H$ is the one with the highest mean, which favours it; they are not corrected for multiplicity.
+
+Per latent, the picture is mixed (exploratory). At $H = 20$ the ~2-word explanation has the highest $S$ for 99 of 200 latents, an intermediate budget for 100 (~5 words: 60, ~10: 32, ~20: 8) and ~40 words for 1. Single-explanation scores are noisy (§4.5), so part of this spread is measurement noise; H3 is a claim about the mean.
 
 ![Mean $J$ and $S$ ($H = 20$) against median explanation length in Experiment 2.](../figures/fig3_budget_curves.png)
 
@@ -172,16 +178,23 @@ Table 4: Cross-fitted selection among 8 candidates per latent.
 
 All three pre-registered criteria hold. Selection by $S$ almost never picks the ~40-word or unconstrained explanations: 2 and 1 picks out of 400, against 28 and 29 under $J$.
 
+The pre-registered analysis uses one random half-split per latent (seed 0). Repeating it with 20 different splits (exploratory), all three criteria hold in 20 of them: the $J$ loss ranges from 0.021 to 0.039, the length reduction from 25% to 42% (mean 33%; the pre-registered split's 39% is near the top of that range), and the margin over picking the shortest from 0.142 to 0.154.
+
 ![Held-out $J$ and median length of the explanation chosen by each rule.](../figures/fig5_selection.png)
 
 ## 4.5 Reliability and robustness
 
-| re-scoring | latents | explanations | Spearman J | Spearman S |
-|---|---:|---:|---:|---:|
-| same scorer, new shuffle seed (43) | 50 | 502 | 0.961 | 0.957 |
-| Llama-3.3-70B as scorer | 50 | 502 | 0.971 | 0.968 |
+| second scoring (Spearman) | contexts | latents | expl. | J pooled | S pooled | J within | S within |
+|------------------------|--------------|-------:|-------:|-------:|-------:|-------:|-------:|
+| new shuffle seed (43) | same 50 | 50 | 502 | 0.961 | 0.957 | 0.909 | 0.945 |
+| Llama-3.3-70B scorer | same 50 | 50 | 502 | 0.971 | 0.968 | 0.919 | 0.957 |
+| other half of contexts | disjoint 25/25 | 200 | 1802 | 0.824 | 0.849 | 0.663 | 0.829 |
 
-Table 5: Re-scoring 50 latents (all conditions).
+Table 5: Agreement between two scorings of the same explanations. The two re-scorings (50 latents, all conditions) reuse the same 50 contexts, so they measure only the scorer's own noise. The split-half row compares each explanation's scores on the two disjoint halves of its contexts in the main run (random control excluded), which adds the noise from which contexts were drawn. *Within latent* = Spearman after subtracting each latent's mean, which removes the spread between latents that inflates the pooled values.
+
+The scorer is consistent with itself: on the same contexts, a new batch order or a different scorer (Llama-3.3-70B) mostly preserves which explanation of a latent is better (within-latent Spearman of $J$: 0.91 and 0.92). The choice of contexts matters more: across disjoint halves of 25 contexts, the within-latent Spearman of $J$ is 0.66. Single-explanation scores, and so per-latent comparisons, are noisy. Our hypotheses are about means over 200 latents, and their bootstrap CIs include this noise, because each latent's scores come from its own sampled contexts.
+
+Dropping the 8.3% of test positives that contain `<|endoftext|>` (§3) and re-running H1–H4 gives the same verdicts (supported: H1 True, H2 True, H3 False, H4 True). Mean $S$ at $H = 20$ for ~2, ~10 and ~40 words becomes 0.430, 0.375 and 0.124.
 
 Measuring $L$ in words or characters instead of tokens leaves the ranking of explanations by $S$ almost unchanged: Spearman 0.998 and 0.996, with $H$ rescaled by the corpus words-per-token and characters-per-token ratios.
 
@@ -191,7 +204,7 @@ Measuring $L$ in words or characters instead of tokens leaves the ranking of exp
 
 **What the length factor does well.** As a *selection* criterion over candidate explanations of the same latent, $S$ achieves the intended trade-off: much shorter explanations at a small, measured loss in accuracy. It is also robust:
 
-- Short-but-wrong explanations cannot win: the random control has $S \approx 0$.
+- Unrelated explanations score near zero: the random control (median 8 tokens) has $S$ = 0.021, and by construction any explanation at or below chance gets $S = 0$, however short it is.
 - Selecting by $S$ is far better than simply preferring brevity.
 
 **What it does not do at $H = 20$.** Averaged over latents, the pre-registered penalty is harsh enough that the shortest explanations win. For GPT-2 layer-6 latents, a ~2-word label already reaches most of the $J$ that ~40 words reach: 0.464 vs 0.577. Two readings fit this result; we did not test which one holds:
@@ -199,20 +212,22 @@ Measuring $L$ in words or characters instead of tokens leaves the ranking of exp
 - many of these latents are close to single-token detectors, in line with the strong top-token baseline;
 - detection on 17-token contexts cannot reward nuance beyond what a short label carries.
 
-**Choosing $H$.** $H$ is the exchange rate between accuracy and brevity, the price in tokens of halving the score. It is a value judgement and should be set for the use case. In our post-hoc sweep, ~2-word labels win for $H \leq 20$, tie with ~10-word explanations at $H = 40$, and fall nominally behind them at $H = 80$. Because $\log_2 S = \log_2 J - L/H$, $H$ also has an MDL reading: each token costs $1/H$ bits of $\log_2 J$.
+**Choosing $H$.** $H$ is the exchange rate between accuracy and brevity, the price in tokens of halving the score. It is a value judgement and should be set for the use case. In our post-hoc sweep, ~2-word labels win for $H \leq 20$, tie with ~10-word explanations at $H = 40$, and trail them in mean at $H = 80$, though not significantly. Because $\log_2 S = \log_2 J - L/H$, $H$ also has an MDL reading: each token costs $1/H$ bits of $\log_2 J$.
 
 # 6. Limitations
 
 - **One SAE and one scorer family.** GPT-2 small, layer 6, with Llama 70B scorers. The reliability checks cover a second scorer on 50 latents only, and OpenRouter routed that scorer's calls across several providers (see the reliability report).
-- **Short contexts and a small test set.** Contexts are 17 tokens, and each explanation is scored on 50 contexts rather than Paulo et al.'s 100 + 100 (§4.2), so single-explanation scores are noisy (Table 5). Our claims are about means over 200 latents.
-- **Possible overlap.** Neuronpedia's explanations were written from top activations. Holding out the 20 strongest contexts reduces but does not remove overlap with our test positives. The Exp 2 explanations are fully held out.
+- **Short contexts and a small test set.** Contexts are 17 tokens, and each explanation is scored on 50 contexts rather than Paulo et al.'s 100 + 100 (§4.2). Single-explanation scores are therefore noisy: across disjoint halves of the contexts, the within-latent Spearman of $J$ is only 0.66 (Table 5). Our claims are about means over 200 latents.
+- **Strong activations only.** Every test positive reaches at least 10% of its latent's top exported activation (§3). Weak activations, which Paulo et al.'s decile sampling includes, are not tested, so absolute $J$ overstates how well explanations cover a latent's full range.
+- **Possible overlap.** Neuronpedia's explanations were written from top activations. Holding out the 20 strongest contexts reduces but does not remove overlap with our test positives. The Exp 2 explainer saw only those 20 train contexts, none of which is a test context, but 35 of 5000 test positives (0.7%, in 21 latents) share a run of at least 8 consecutive tokens with a train context, i.e. come from the same passage.
+- **The same model explains and scores.** Llama-3.1-70B writes the Exp 2 explanations and also scores every explanation, and it may favour its own phrasing. Comparisons between Exp 2 and Neuronpedia's explanations (Table 1, and H4's candidate pool) are confounded with this, and with the explainers having seen different contexts. H2 and H3 compare Exp 2 explanations with each other and are not affected.
 - **Sample bias.** The eligibility filters keep 70.1% of latents. The ≥ 45 activating contexts filter alone keeps 82.6% (the pre-registration estimated about 81%) and likely favours denser latents; the ≥ 25 zero-row filter alone keeps 86.9%, and we did not study what it selects for.
 - **Tokenizer dependence.** $L$ depends on the tokenizer, but rankings barely change with words or characters.
 - **Untested properties.** We did not test whether shorter explanations are more *useful* to humans or downstream tools. We assume it, as the premise of the project.
 
 # 7. Conclusion
 
-Multiplying the above-chance detection score by $2^{-L/H}$ is a one-line, library-compatible way to make SAE explanation scores reward brevity. Used to choose explanations, it gives much shorter ones at a small cost in accuracy. The pre-registered strength $H = 20$ is, however, strong enough that on average the shortest explanations win, so $H$ should be chosen deliberately; in our post-hoc sweep, ~10-word explanations only draw level at $H = 40$ and are only nominally ahead at $H = 80$.
+Multiplying the above-chance detection score by $2^{-L/H}$ is a one-line, library-compatible way to make SAE explanation scores reward brevity. Used to choose explanations, it gives much shorter ones at a small cost in accuracy. The pre-registered strength $H = 20$ is, however, strong enough that on average the shortest explanations win, so $H$ should be chosen deliberately; in our post-hoc sweep, ~10-word explanations only draw level at $H = 40$, and at $H = 80$ their higher mean is not significant.
 
 # Related work
 
@@ -254,6 +269,8 @@ Hypotheses, metrics, tests and falsification criteria were committed in `PREREG.
 
 1. The Exp 2 budget sentence asks for "approximately B words" instead of "at most B words", because delphi's explainer prompt already demands concision.
 2. The negatives changed from Neuronpedia's zero rows to verified random OpenWebText windows, after the 10-latent debugging pilot showed the zero rows were near-duplicates.
+
+The second change was not blind to the pilot's results. The first pilot run, with the old negatives, had already been scored and analysed. Its random control scored $J$ = +0.084, and the pre-registered verdicts on its 10 latents were H1 False, H2 False, H3 False and H4 False. The re-run with the new negatives gave $J$ = -0.024 for the random control and H1 True, H2 False, H3 False, H4 True. The change was prompted by the duplicate negatives in the logged prompts, and it follows delphi's default and Paulo et al.'s random negatives. A random control above chance is itself a sign of flawed negatives. Both pilot runs are kept in `results/`.
 
 The analysis plan was not changed. The $H$ sweep tests are labelled exploratory.
 

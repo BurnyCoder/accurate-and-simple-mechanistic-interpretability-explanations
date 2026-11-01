@@ -10,12 +10,12 @@
 
 | # | Experiment | Question | Outcome | Report |
 |---|---|---|---|---|
-| 0 | Pilot + verified negatives | Does the pipeline work? Are the non-activating examples good? | Pipeline works (0.0% parse failures). Neuronpedia's zero rows were near-duplicates, so they were replaced by verified random negatives (SAE reproduces Neuronpedia, r = 0.988). | [exp0](exp0_pilot_and_negatives.md) |
+| 0 | Pilot + verified negatives | Does the pipeline work? Are the non-activating examples good? | Pipeline works (0.0% parse failures). Neuronpedia's zero rows were near-duplicates, so they were replaced by verified random negatives (SAE reproduces Neuronpedia, r = 0.988). The switch came after the first pilot's results had been seen. | [exp0](exp0_pilot_and_negatives.md) |
 | 1 | Existing explanations | H1: is the scorer valid? How do sources compare under J and S? | H1 True: random J = -0.022; gpt-4o-mini 0.499, gpt-3.5 0.444. Under S, the top-token baseline is not distinguishable from either Neuronpedia source (post hoc). | [exp1](exp1_existing_explanations.md) |
 | 2a | Length budgets | H2: does J rise with length, with diminishing returns? | True: J 0.464 (~2 words) → 0.577 (~40 words). | [exp2](exp2_length_budgets.md) |
-| 2b | Length budgets | **H3 (primary):** is there an interior S optimum at H = 20? | **Falsified** (False): S decreases monotonically. Exploratory: ~10 words ties ~2 words at H = 40 and is nominally ahead at H = 80 (one-sided p = 0.050, post hoc). | [exp2](exp2_length_budgets.md) |
+| 2b | Length budgets | **H3 (primary):** is there an interior S optimum at H = 20? | **Falsified** (False): S decreases monotonically. Exploratory: ~10 words ties ~2 words at H = 40; at H = 80 its higher mean is not significant (one-sided p = 0.0505, post hoc). | [exp2](exp2_length_budgets.md) |
 | 2c | Selection | H4: does choosing by S give short and accurate picks? | True: 39% shorter, −0.031 J; +0.146 J over the shortest. | [exp2](exp2_length_budgets.md) |
-| 3 | Reliability | Do scores reproduce under a new shuffle and a different scorer? | Spearman J: retest 0.96, alternative scorer 0.97. | [reliability](reliability.md) |
+| 3 | Reliability | Do scores reproduce under a new shuffle, a different scorer, and different contexts? | Same contexts: within-latent Spearman J 0.91 (retest), 0.92 (alternative scorer). Disjoint context halves: 0.66, so single scores are noisy and the claims rest on means. | [reliability](reliability.md) |
 
 All experiments in one file: [all_experiments.md](all_experiments.md).
 
@@ -73,7 +73,8 @@ No network was trained in this project. These are the models it uses.
 ## Learnings
 
 - **Detection scoring is easy to set up from public data alone,** with one exception: the negatives. Neuronpedia exports top and quantile activations with exact per-token values, which are ideal positives. Its zero-activation rows, however, are near-duplicate windows. Verified random negatives need a forward pass of the subject model and SAE (minutes on a laptop GPU).
-- **Read the scorer prompts.** The negative-example problem was invisible in the summary numbers and obvious in the logged prompts.
+- **Read the scorer prompts.** The negative-example problem was found in the logged prompts. In the summary numbers it showed only as an above-chance random control (J = +0.084 on 10 latents), which did not say why.
+- **Reliability checks must vary the contexts.** Re-scoring the same contexts with a new seed or scorer agreed closely; scoring disjoint halves of the contexts agreed much less. Most of the noise in a single score comes from which contexts were drawn.
 - **H is a value judgement.** At H = 20, the accuracy gained per extra token was smaller than the length cost for these latents. Pre-registering H prevented tuning it to make H3 come out true. The sweep is reported as exploratory.
 - **Selection is where the score earns its keep.** Averaged curves (H3) and per-latent choices (H4) can disagree. A length-aware score is most useful for choosing among candidate explanations of the same latent.
 - **Engineering:**

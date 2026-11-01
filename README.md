@@ -14,7 +14,7 @@ L = explanation length in tokens (tiktoken o200k_base)
 H = half-life: the score halves every H tokens (pre-registered: 20)
 ```
 
-In log space, `log S = log J − (ln 2 / H)·L`: a constant cost per token, the minimum-description-length trade-off between fit and description length ([Rissanen 1978](https://doi.org/10.1016/0005-1098(78)90005-5)). Nothing is trained; the only local model run is a GPT-2 small + SAE forward pass that verifies the negatives:
+In log space, `log S = log J − (ln 2 / H)·L`: a constant cost per token, a fit-versus-length trade-off analogous to minimum description length ([Rissanen 1978](https://doi.org/10.1016/0005-1098(78)90005-5)). Nothing is trained; the only local model run is a GPT-2 small + SAE forward pass that verifies the negatives:
 
 - Explanations and activating contexts come from [Neuronpedia's public export](https://neuronpedia-datasets.s3.us-east-1.amazonaws.com/index.html) for GPT-2 small (`6-res-jb`, [Bloom 2024](https://www.lesswrong.com/posts/f9EgfLSurAiqRJySD/open-source-sparse-autoencoders-for-all-residual-stream)).
 - Non-activating contexts are random OpenWebText windows on which the same SAE is verified to be 0.
@@ -35,18 +35,21 @@ Everything was pre-registered in [PREREG.md](PREREG.md) before any results exist
 - ❌ **Primary hypothesis falsified: at the pre-registered H = 20 there is no interior optimum.**
   - Mean S *decreases* steadily with length: 0.430 (~2 words) > 0.395 > 0.374 > 0.278 > 0.123 (~40 words).
   - At H = 20, the accuracy gained per extra token is smaller than the length cost, so on average the shortest explanation wins.
-  - In an exploratory (not pre-registered) sweep, ~10 words ties ~2 words at H = 40. At H = 80 it is nominally ahead of ~2 words, +0.041 [0.013, 0.069], but the one-sided Wilcoxon p is 0.050, uncorrected and post hoc.
+  - In an exploratory (not pre-registered) sweep, ~10 words ties ~2 words at H = 40. At H = 80 its mean is higher than ~2 words', +0.041 [0.013, 0.069], but the one-sided Wilcoxon p is 0.0505: not significant, uncorrected and post hoc.
+  - This is about the mean. Per latent, the shortest budget has the highest S for 99 of 200 latents and an intermediate one for 100, though single-explanation scores are noisy.
 - ✅ **The length factor works as a selection rule.**
   - Among 8 candidate explanations per latent, picking by S instead of plain detection J gives explanations 39% shorter (median 5.5 vs 9.0 tokens).
   - The held-out J loss is only 0.031 [0.018, 0.046]: about 0.613 vs 0.644.
   - Picking by S beats "pick the shortest" by 0.146 J. Selection and evaluation used disjoint halves of the test snippets.
+  - With 20 different random half-splits instead of the pre-registered one, all three criteria hold in 20 (exploratory).
 - 🔎 **The laziest baseline is competitive.**
   - `the token "X"` (median 5 tokens) gets J = 0.430. That is not distinguishable from gpt-3.5-turbo's 0.444 (paired difference -0.015 [-0.064, +0.036]) and below gpt-4o-mini's 0.499 (-0.070 [-0.110, -0.028]).
   - Under S it scores 0.365, not distinguishable from gpt-3.5-turbo (0.341; +0.023 [-0.016, +0.064]) or from gpt-4o-mini (0.374; -0.009 [-0.041, +0.023]). These comparisons are post hoc.
-- 🔁 **The conclusions survive re-scoring.**
-  - Per-explanation rankings are stable under a new batch shuffle: Spearman J = 0.96, S = 0.96.
-  - They are also stable under a different scorer (Llama-3.3-70B): J = 0.97, S = 0.97.
+- 🔁 **The scorer is consistent; single scores are noisy because of which contexts are drawn.**
+  - On the same 50 contexts, a new batch shuffle and a different scorer (Llama-3.3-70B) mostly keep which explanation of a latent is better: within-latent Spearman J = 0.91 and 0.92.
+  - On two disjoint halves of the contexts, the within-latent Spearman of J is only 0.66. So the claims rest on means over 200 latents, not on single explanations.
   - Measuring length in words or characters instead of tokens changes S rankings negligibly (Spearman ≥ 0.996).
+  - Dropping the 8.3% of test positives that contain `<|endoftext|>` (never present in the negatives) leaves every hypothesis verdict unchanged.
 
 ![Exp 2: J rises with length, S falls at H = 20](figures/fig3_budget_curves.png)
 
@@ -97,7 +100,7 @@ No. The ~2-word explanations have the highest mean S, and every longer budget is
 
 ![Mean S per length budget for each half-life H](figures/fig4_h_sweep.png)
 
-H is an exchange rate between accuracy and brevity, not a measured quantity. For these GPT-2 latents, H = 20 is strong enough that the shortest explanations win on average. At H = 40, ~10-word and ~2-word explanations tie (+0.005 [-0.022, +0.032]). Only around H = 80 are ~10-word explanations nominally ahead (bootstrap CI above 0, one-sided Wilcoxon p = 0.050), at the length where accuracy gains flatten out (see the Exp 2 curve above). These sweep comparisons are post hoc.
+H is an exchange rate between accuracy and brevity, not a measured quantity. For these GPT-2 latents, H = 20 is strong enough that the shortest explanations win on average. At H = 40, ~10-word and ~2-word explanations tie (+0.005 [-0.022, +0.032]). Only around H = 80 do ~10-word explanations have the higher mean (bootstrap CI above 0, but one-sided Wilcoxon p = 0.0505, not below 0.05), at the length where accuracy gains flatten out (see the Exp 2 curve above). These sweep comparisons are post hoc, and the budget tested at each H is the one with the highest mean, which favours it.
 
 ### H4: does selecting by S give short and accurate explanations?
 
@@ -111,10 +114,13 @@ H is an exchange rate between accuracy and brevity, not a measured quantity. For
 
 ### Reliability
 
-| re-scoring | latents | explanations | Spearman J | Spearman S |
-|---|---:|---:|---:|---:|
-| same scorer, new shuffle seed (43) | 50 | 502 | 0.961 | 0.957 |
-| Llama-3.3-70B as scorer | 50 | 502 | 0.971 | 0.968 |
+| second scoring (Spearman) | contexts | latents | expl. | J pooled | S pooled | J within | S within |
+|------------------------|--------------|-------:|-------:|-------:|-------:|-------:|-------:|
+| new shuffle seed (43) | same 50 | 50 | 502 | 0.961 | 0.957 | 0.909 | 0.945 |
+| Llama-3.3-70B scorer | same 50 | 50 | 502 | 0.971 | 0.968 | 0.919 | 0.957 |
+| other half of contexts | disjoint 25/25 | 200 | 1802 | 0.824 | 0.849 | 0.663 | 0.829 |
+
+The two re-scorings reuse the same 50 contexts, so they measure the scorer's own noise. The split-half row scores each explanation on two disjoint halves of its contexts, which adds the noise from which contexts were drawn. *Within latent* removes each latent's mean first, since differences between latents inflate the pooled correlations. Details: [reports/reliability.md](reports/reliability.md).
 
 ![Every scored explanation, J vs length](figures/fig2_j_vs_length.png)
 
@@ -123,7 +129,7 @@ H is an exchange rate between accuracy and brevity, not a measured quantity. For
 - Compared with **plain detection scoring**, the new score prefers explanations that are 39% shorter and gives up only 0.031 accuracy (J) when picking the best explanation per feature. That is the intended trade.
 - Compared with the **"just pick the shortest" baseline**, it keeps much more accuracy (0.146 higher J). Brevity alone is not what it rewards.
 - The **random-explanation control** scores about zero under both J and S (0.021), so being short cannot rescue an unrelated explanation.
-- **Where it did not work as hoped:** at the pre-registered strength (H = 20) the score pushes, on average, all the way to ~2-word labels. In the post-hoc sweep, ~10-word explanations only draw level at H = 40 and pull nominally ahead at H = 80, so a much weaker penalty is needed if descriptive explanations are wanted.
+- **Where it did not work as hoped:** at the pre-registered strength (H = 20) the score pushes, on average, all the way to ~2-word labels. In the post-hoc sweep, ~10-word explanations only draw level at H = 40 and have a higher but not significantly higher mean at H = 80, so a much weaker penalty is needed if descriptive explanations are wanted.
 - **Ablation:** setting H = ∞ removes the length factor and leaves max(J, 0), plain detection scoring clipped at 0, under which the longest (~40-word) explanations are best on average.
 
 ## Method in brief
@@ -132,7 +138,7 @@ H is an exchange rate between accuracy and brevity, not a measured quantity. For
 - **Latents:** 200 drawn at random (seed 0) from the 17226 (70.1%) that have both Neuronpedia LLM explanations, ≥ 45 activating contexts and ≥ 25 zero-activation rows in the export. delphi's two few-shot latents from this SAE are excluded.
 - **Contexts per latent:**
   - the 20 strongest activating contexts go to the explainer only;
-  - 25 activating test contexts are stratified over 5 activation-quantile bins;
+  - 25 activating test contexts are stratified over 5 activation-quantile bins of the export's remaining rows (all at least 10% of the latent's top activation, so weak activations are not tested);
   - 25 negatives are random 17-token OpenWebText windows on which the latent's activation is exactly 0.
 - **Checking the negatives:** we run GPT-2 small + the SAE through sae_lens. On 152 of Neuronpedia's top-activating windows, our activations reproduce the exported maxima with Pearson r = 0.988.
 - **Scorer:** delphi `DetectionScorer`, 5 contexts per prompt (as in Paulo et al., App. D.1), temperature 0, Llama-3.1-70B-Instruct (OpenRouter, pinned to DeepInfra, which served all 21220 main-run calls).
@@ -140,7 +146,7 @@ H is an exchange rate between accuracy and brevity, not a measured quantity. For
   - H4 selects on one half of the test contexts and evaluates on the other (cross-fitting, as in [Chernozhukov et al. 2018](https://doi.org/10.1111/ectj.12097)), to avoid the winner's curse.
   - Parse failures affected 0.035% of samples.
 
-Details: [docs/methodology.md](docs/methodology.md), [PREREG.md](PREREG.md) (including two deviations made before any main results), [reports/](reports/).
+Details: [docs/methodology.md](docs/methodology.md), [PREREG.md](PREREG.md) (including two deviations made before any main results; the second was made after the debugging pilot's results had been seen, see [exp0](reports/exp0_pilot_and_negatives.md)), [reports/](reports/).
 
 ## How it works
 
@@ -169,7 +175,7 @@ flowchart LR
 
    Every prompt and response goes, untruncated, to `logs/<timestamp>_<phase>.log` and to the terminal. Every per-context prediction goes to `results/<sample>/scores.jsonl`. Re-running skips finished jobs.
 4. **`reliability`** re-scores 50 latents with a new shuffle seed, and again with Llama-3.3-70B as the scorer.
-5. **`analyze`** recomputes balanced accuracy with delphi's own metric code, then derives J, L and S. It runs the pre-registered tests and writes `results/main/numbers.json`, `figures/*.png` and `docs/data.json`, and renders this README, `reports/` and `paper/` from `templates/`.
+5. **`analyze`** recomputes balanced accuracy with delphi's own metric code, then derives J, L and S. It runs the pre-registered tests, then the exploratory checks: split-half reliability on disjoint contexts, H4 over 20 random cross-fit splits, and test-set audits (`checks.py`: train/test passage overlap, `<|endoftext|>` positives, activation range) with H1–H4 re-run without the `<|endoftext|>` positives. It writes `results/main/numbers.json`, `figures/*.png` and `docs/data.json`, and renders this README, `reports/` and `paper/` from `templates/`. It takes about 3 minutes.
 
 ## Install and run
 

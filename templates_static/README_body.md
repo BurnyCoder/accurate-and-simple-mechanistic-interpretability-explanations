@@ -25,7 +25,7 @@ flowchart LR
 
    Every prompt and response goes, untruncated, to `logs/<timestamp>_<phase>.log` and to the terminal. Every per-context prediction goes to `results/<sample>/scores.jsonl`. Re-running skips finished jobs.
 4. **`reliability`** re-scores 50 latents with a new shuffle seed, and again with Llama-3.3-70B as the scorer.
-5. **`analyze`** recomputes balanced accuracy with delphi's own metric code, then derives J, L and S. It runs the pre-registered tests and writes `results/main/numbers.json`, `figures/*.png` and `docs/data.json`, and renders this README, `reports/` and `paper/` from `templates/`.
+5. **`analyze`** recomputes balanced accuracy with delphi's own metric code, then derives J, L and S. It runs the pre-registered tests, then the exploratory checks: split-half reliability on disjoint contexts, H4 over 20 random cross-fit splits, and test-set audits (`checks.py`: train/test passage overlap, `<|endoftext|>` positives, activation range) with H1–H4 re-run without the `<|endoftext|>` positives. It writes `results/main/numbers.json`, `figures/*.png` and `docs/data.json`, and renders this README, `reports/` and `paper/` from `templates/`. It takes about 3 minutes.
 
 ## Install and run
 
