@@ -32,7 +32,7 @@ S = max(J, 0) · 2^(−L / H)            H = half-life in tokens (pre-registered
 Why each part:
 
 - **J rather than BA.** A random explanation gets BA ≈ 0.5. If BA were multiplied by a length factor, a one-word random explanation would beat a long accurate one. With J, chance is 0, so brevity cannot be rewarded without accuracy above chance. The clip `max(J, 0)` does the same for below-chance explanations.
-- **Multiplicative exponential factor.** `log S = log J − (ln 2 / H)·L`: each token costs the same amount of log-score. This is the two-part code of minimum description length: fit plus description length ([Rissanen 1978](https://doi.org/10.1016/0005-1098(78)90005-5)). [Ayonrinde et al. 2024](https://arxiv.org/abs/2410.11179) apply MDL to the SAE itself (latent code plus decoder); here it is applied to the text explanation. The score halves every H tokens, which makes H easy to state and tune.
+- **Multiplicative exponential factor.** `log S = log J − (ln 2 / H)·L`: each token costs the same amount of log-score. This is analogous to the two-part code of minimum description length, fit plus description length ([Rissanen 1978](https://doi.org/10.1016/0005-1098(78)90005-5)), but not an instance of it: `−log J` is a fit penalty, not the code length of the data given the explanation. [Ayonrinde et al. 2024](https://arxiv.org/abs/2410.11179) apply MDL to the SAE itself (latent code plus decoder); here it is applied to the text explanation. The score halves every H tokens, which makes H easy to state and tune.
 - **Tokens of a fixed public tokenizer.** Using o200k_base ([tiktoken](https://github.com/openai/tiktoken)) means L does not depend on which LLM scores. Words and characters are reported as a robustness check.
 - **H is a value judgement.** It is the exchange rate between accuracy and brevity, not something measured. At H = 20, a 10-token explanation keeps 71% of its J, and a 40-token one keeps 25%. The README reports a sweep over H.
 
@@ -51,10 +51,12 @@ Two of delphi's three detection few-shot examples are latents of this SAE (6048 
 Per latent, the split is:
 
 - **train:** the 20 strongest contexts. Only the Exp 2 explainer sees them.
-- **test positives:** 25 of the rest, 5 from each of 5 activation-quantile bins.
+- **test positives:** 25 of the rest, 5 from each of 5 activation-quantile bins. The quantiles are over the export's rows, not over the corpus, and the export holds only fairly strong activations, so the weakest test positives still reach about a tenth of the latent's top activation (exact numbers in the paper, §3).
 - **test negatives:** 25 verified-zero random OpenWebText windows.
 
 Every condition of a latent is scored on the same 50 contexts, in the same shuffled batches. The scorer's shuffle seed is fixed, so conditions differ only in the explanation.
+
+`checks.py` audits what the scorer saw: test positives that share a long token run with a train context (same passage), and positives containing GPT-2's document separator `<|endoftext|>`, which our single-document negatives never contain. The analysis re-runs H1–H4 without those positives.
 
 ## 4. Experiments
 
@@ -62,7 +64,7 @@ Every condition of a latent is scored on the same 50 contexts, in the same shuff
 - **Exp 2 (incentive test).** Llama-3.1-70B, with delphi's default explainer prompt, writes explanations asked to be about 2, 5, 10, 20 or 40 words, plus one unconstrained.
   - If the length factor works as intended, J should rise with length and then flatten (H2), while S should peak at an intermediate length (H3).
   - We also choose, per latent, among 8 candidates by max J, by max S, or by shortest. Selection and evaluation are cross-fitted ([Chernozhukov et al. 2018](https://doi.org/10.1111/ectj.12097)) on disjoint halves of the test contexts, to avoid the winner's curse (H4).
-- **Reliability.** On 50 latents we re-score with a different shuffle seed, and again with Llama-3.3-70B as the scorer.
+- **Reliability.** On 50 latents we re-score with a different shuffle seed, and again with Llama-3.3-70B as the scorer. Both reuse the same 50 contexts, so they measure the scorer's own noise only. The noise from which contexts were drawn is measured by scoring each explanation on the two disjoint cross-fit halves of its contexts (split-half). Correlations are reported pooled and within latent (each latent's mean removed), since differences between latents inflate pooled correlations.
 
 ## 5. Implementation map
 
@@ -78,7 +80,8 @@ Every condition of a latent is scored on the same 50 contexts, in the same shuff
 | `src/concise_interp/scoring.py` | delphi `DetectionScorer` over all jobs; resumable JSONL output. |
 | `src/concise_interp/explain.py` | delphi `DefaultExplainer` with a word-budget sentence (Exp 2). |
 | `src/concise_interp/length_score.py` | **The method:** J, L, the length factor, S. |
-| `src/concise_interp/analysis.py` | Metrics (delphi's own `compute_confusion`), bootstrap CIs, tests, cross-fit selection. |
+| `src/concise_interp/analysis.py` | Metrics (delphi's own `compute_confusion`), bootstrap CIs, tests, cross-fit selection, reliability. |
+| `src/concise_interp/checks.py` | Test-set audits: train/test passage overlap, `<\|endoftext\|>` in positives, activation range. |
 | `src/concise_interp/figures.py` | Figures from results. |
 | `src/concise_interp/render.py` | Fills templates/ with numbers from `results/main/numbers.json`. |
 | `scripts/build_paper.sh` | Builds `paper/paper.pdf` from the rendered Markdown (pandoc + xelatex). |
