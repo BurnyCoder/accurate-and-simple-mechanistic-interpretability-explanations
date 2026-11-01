@@ -8,8 +8,9 @@ above-chance score J and multiplies it by a factor that halves every `half_life`
     S = max(J, 0) * 2^(-L / H),   J = 2 * BA - 1
 
 In log space, log S = log J - (ln 2 / H) * L: every token costs the same amount of log-score,
-the minimum-description-length trade-off between fit and description length
-(Rissanen 1978; for SAEs, Ayonrinde et al. 2024, https://arxiv.org/abs/2410.11179).
+a fit-versus-length trade-off analogous to minimum description length (Rissanen 1978; for SAEs,
+Ayonrinde et al. 2024, https://arxiv.org/abs/2410.11179). It is not an MDL code length:
+-log J is a fit penalty, not the code length of the data given the explanation.
 """
 
 import math
