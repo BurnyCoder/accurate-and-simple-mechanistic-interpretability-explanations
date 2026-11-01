@@ -51,7 +51,7 @@ Two of delphi's three detection few-shot examples are latents of this SAE (6048 
 Per latent, the split is:
 
 - **train:** the 20 strongest contexts. Only the Exp 2 explainer sees them.
-- **test positives:** 25 of the rest, 5 from each of 5 activation-quantile bins. The quantiles are over the export's rows, not over the corpus, and the export holds only fairly strong activations, so the weakest test positives still reach about a tenth of the latent's top activation (exact numbers in the paper, §3).
+- **test positives:** 25 of the rest, 5 from each of 5 activation-quantile bins. The quantiles are over the export's rows, not over the corpus, and the export holds only fairly strong activations, so even the weakest test positives are well above zero; weak activations are not tested (the exact range, computed by `checks.py`, is in the paper, §3).
 - **test negatives:** 25 verified-zero random OpenWebText windows.
 
 Every condition of a latent is scored on the same 50 contexts, in the same shuffled batches. The scorer's shuffle seed is fixed, so conditions differ only in the explanation.

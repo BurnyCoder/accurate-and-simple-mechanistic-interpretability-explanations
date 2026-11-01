@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from concise_interp import config
+from concise_interp import analysis, config
 from concise_interp.analysis import (
     BUDGET_CONDITIONS,
     agreement,
@@ -101,6 +101,30 @@ def test_crossfit_halves_are_stratified_disjoint_and_follow_the_seed():
     assert not a & b and len(a | b) == 20
     assert sum(i.startswith("p") for i in a) == 5 and sum(i.startswith("n") for i in a) == 5
     assert any(crossfit_halves(df, seed=s)[1][0] != a for s in range(1, 5))
+
+
+def test_h4_passes_its_seed_to_the_cross_fit_split(monkeypatch):
+    seen = []
+
+    def fake_halves(df, seed):
+        seen.append(seed)
+        raise StopIteration  # the split is all this test needs
+
+    monkeypatch.setattr(analysis, "crossfit_halves", fake_halves)
+    with pytest.raises(StopIteration):
+        analysis.h4(pd.DataFrame({"condition": []}), seed=7)
+    assert seen == [7]
+
+
+def test_h4_split_sensitivity_runs_one_h4_per_seed_and_summarises(monkeypatch):
+    def fake_h4(df, seed):
+        return {"supported": seed != 2, "j_loss_argmaxJ_minus_argmaxS": {"mean": 0.01 * seed},
+                "length_reduction": 0.3, "argmaxS_minus_argminL": {"mean": 0.1}}
+
+    monkeypatch.setattr(analysis, "h4", fake_h4)
+    out = analysis.h4_split_sensitivity(pd.DataFrame(), n_splits=4)  # seeds 0..3
+    assert out["n_splits"] == 4 and out["n_supported"] == 3
+    assert out["j_loss"] == pytest.approx({"mean": 0.015, "min": 0.0, "max": 0.03})
 
 
 def test_agreement_separates_within_latent_order_from_latent_offsets():
