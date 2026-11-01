@@ -9,7 +9,7 @@
 - **Explainer:** Llama-3.1-70B-Instruct (OpenRouter, DeepInfra, temperature 0) with delphi's `DefaultExplainer` prompt: its system prompt, 3 few-shot examples, and the latent's 20 strongest contexts with `<<highlighted>>` tokens and activation values.
 - **Budgets:** one sentence was appended: "Your final explanation (the [EXPLANATION]: line) must be approximately B words long", for B ∈ {2, 5, 10, 20, 40}. One unconstrained explanation used delphi's prompt unchanged.
 - **Volume:** 1200 explanations (6 per latent × 200 latents), of which 1200 parsed.
-- **Test set:** the test contexts are disjoint from the 20 the explainer saw, so these explanations are fully held out.
+- **Test set:** no test context is one of the 20 the explainer saw. 35 of 5000 test positives (0.7%, in 21 latents) share a run of at least 8 consecutive tokens with a train context, i.e. come from the same passage; the rest are fully held out.
 - **Budget choice:** pre-registered (PREREG section 5), spaced roughly geometrically from 2 to 40 words. The observed medians run from 2 to 45 tokens, which brackets Neuronpedia's explanations (median 8 tokens) and delphi's unconstrained output (median 30 tokens).
 
 **Manipulation check (median tokens):**
@@ -69,10 +69,12 @@ At H = 40 the budget with the highest mean S is ~10 words:
 
 At H = 80 it is ~10 words:
 
-- vs ~2 words: +0.041 [+0.013, +0.069], p = 0.050 (the bootstrap CI excludes 0, the Wilcoxon test is borderline);
+- vs ~2 words: +0.041 [+0.013, +0.069], p = 0.0505 (the bootstrap CI excludes 0, but the Wilcoxon test does not reach 0.05);
 - vs ~40 words: +0.108 [+0.087, +0.128], p = 4.8e-18.
 
-These comparisons were chosen after seeing the data and are not corrected for multiplicity, so they are hypotheses for a future pre-registered test, not confirmed findings.
+These comparisons were chosen after seeing the data, and the budget tested at each H is the one with the highest mean, which favours it. They are not corrected for multiplicity, so they are hypotheses for a future pre-registered test, not confirmed findings.
+
+**Per latent (exploratory).** H3 is about mean S. Per latent at H = 20, the ~2-word explanation has the highest S for 99 of 200 latents, ~5 words for 60, ~10 for 32, ~20 for 8 and ~40 for 1. Single-explanation scores are noisy ([reliability](reliability.md)), so part of this spread is measurement noise.
 
 ![H sweep](../figures/fig4_h_sweep.png)
 
@@ -91,7 +93,9 @@ These comparisons were chosen after seeing the data and are not corrected for mu
 - **Accuracy loss:** J drops by 0.031 [0.018, 0.046] (criterion: ≤ 0.05).
 - **Versus shortest:** argmax-S beats argmin-L by 0.146 [0.115, 0.179] J (criterion: CI > 0).
 
-All three pre-registered criteria hold. Which candidates got picked (counts over 400 selections: 2 halves × 200 latents):
+All three pre-registered criteria hold. They also hold in 20 of 20 other random half-splits (exploratory): J loss 0.021–0.039, length reduction 25%–42% (mean 33%), margin over the shortest 0.142–0.154.
+
+Which candidates got picked (counts over 400 selections: 2 halves × 200 latents):
 
 - argmax J: ~2 words 80, ~5 51, ~10 43, ~20 32, ~40 28, unconstrained 29, gpt-3.5 63, gpt-4o-mini 74.
 - argmax S: ~2 words 145, ~5 78, ~10 27, ~20 8, ~40 2, unconstrained 1, gpt-3.5 67, gpt-4o-mini 72.
@@ -103,5 +107,5 @@ Plain J often picks short explanations too, likely because ties are broken towar
 ## Takeaways
 
 1. The length factor does what it is designed to do at the level of choosing an explanation per latent: much shorter picks for little accuracy (H4).
-2. Averaged over latents, the pre-registered H = 20 is too harsh to make anything but the shortest budget optimal (H3 falsified). H is a value judgement. In the post-hoc sweep, ~10 words ties ~2 words at H = 40 and is nominally ahead at H = 80 (one-sided p = 0.050).
+2. Averaged over latents, the pre-registered H = 20 is too harsh to make anything but the shortest budget optimal (H3 falsified). H is a value judgement. In the post-hoc sweep, ~10 words ties ~2 words at H = 40 and has a higher but not significantly higher mean at H = 80 (one-sided p = 0.0505).
 3. For these GPT-2 layer-6 latents, a ~2-word explanation from a strong explainer already reaches most of the J of a ~40-word one: 0.464 vs 0.577.
