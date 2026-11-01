@@ -12,14 +12,20 @@ import pytest
 
 from concise_interp import config
 from concise_interp.analysis import (
+    BUDGET_CONDITIONS,
+    agreement,
     api_usage,
+    best_budget_counts,
     bootstrap_ci,
     condition_table,
+    crossfit_halves,
     crossfit_selection,
     explanation_metrics,
     holm,
     mean_ci,
+    split_half_reliability,
     wide,
+    without_samples,
 )
 from concise_interp.data import filter_counts
 
@@ -87,6 +93,56 @@ def test_crossfit_ties_go_to_the_shorter_explanation():
     halves = {1: ({"p0", "p1", "n0", "n1"}, {"p2", "p3", "n2", "n3"})}
     out = crossfit_selection(rows, halves, half_life=20).set_index("rule")
     assert out.loc["argmax_j", "n_tokens"] == 1
+
+
+def test_crossfit_halves_are_stratified_disjoint_and_follow_the_seed():
+    df = pd.DataFrame([{"latent": 1, "condition": "a", "samples": _samples(tp=5, fn=5, tn=5, fp=5)}])
+    a, b = crossfit_halves(df, seed=0)[1]
+    assert not a & b and len(a | b) == 20
+    assert sum(i.startswith("p") for i in a) == 5 and sum(i.startswith("n") for i in a) == 5
+    assert any(crossfit_halves(df, seed=s)[1][0] != a for s in range(1, 5))
+
+
+def test_agreement_separates_within_latent_order_from_latent_offsets():
+    # Two latents far apart; inside each, the second run reverses the order of the conditions.
+    m = pd.DataFrame({"latent": [1, 1, 1, 2, 2, 2], "j": [1, 2, 3, 11, 12, 13], "j_2": [3, 2, 1, 13, 12, 11]})
+    m["s"], m["s_2"] = m.j, m.j_2
+    out = agreement(m)
+    assert out["spearman_j"] > 0.5  # the latent offsets alone make the pooled correlation look good
+    assert out["spearman_j_within"] == pytest.approx(-1.0)
+
+
+def _half_consistent(k: int) -> list[dict]:
+    """TPR = k/2 on both halves {p0,p1,n0,n1} and {p2,p3,n2,n3}; no false positives."""
+    return ([{"id": f"p{i}", "activating": True, "prediction": i % 2 < k} for i in range(4)]
+            + [{"id": f"n{i}", "activating": False, "prediction": False} for i in range(4)])
+
+
+def test_split_half_reliability_is_one_for_consistent_explanations_and_skips_random():
+    # Conditions a, b, c have the same J on both halves; the random control does not (J = 1 vs 0)
+    # and would lower the correlation if it were included.
+    flip = [{"id": f"p{i}", "activating": True, "prediction": i < 2} for i in range(4)]
+    flip += [{"id": f"n{i}", "activating": False, "prediction": False} for i in range(4)]
+    df = pd.DataFrame([{"latent": lat, "condition": c, "explanation": "x", "samples": _half_consistent(k)}
+                       for lat in (1, 2) for c, k in (("a", 0), ("b", 1), ("c", 2))]
+                      + [{"latent": lat, "condition": "random", "explanation": "x", "samples": flip} for lat in (1, 2)])
+    halves = {lat: ({"p0", "p1", "n0", "n1"}, {"p2", "p3", "n2", "n3"}) for lat in (1, 2)}
+    out = split_half_reliability(df, halves, half_life=20)
+    assert out["n_explanations"] == 6
+    assert out["spearman_j"] == pytest.approx(1.0) and out["spearman_j_within"] == pytest.approx(1.0)
+
+
+def test_best_budget_counts_ties_go_to_the_shorter_budget():
+    s = pd.DataFrame({c: [0.1, 0.1, 0.1] for c in BUDGET_CONDITIONS}, index=[1, 2, 3])
+    s.loc[2, "gen_b10"] = 0.5  # latent 2 peaks at ~10 words; latents 1 and 3 tie everywhere
+    counts = best_budget_counts(s)
+    assert counts["gen_b2"] == 2 and counts["gen_b10"] == 1 and sum(counts.values()) == 3
+
+
+def test_without_samples_drops_only_the_listed_ids_and_recomputes_j():
+    row = {"latent": 1, "condition": "a", "explanation": "x", "samples": _samples(tp=1, fn=1, tn=2, fp=0)}
+    out = without_samples(pd.DataFrame([row]), {1: {"p1"}})  # drop the missed positive
+    assert out.loc[0, "j"] == pytest.approx(1.0) and len(out.loc[0, "samples"]) == 3
 
 
 def test_condition_table_ci_is_the_h1_ci_whatever_the_row_order():

@@ -75,12 +75,19 @@ def table_h_sweep(numbers: dict) -> str:
 
 
 def table_reliability(numbers: dict) -> str:
-    lines = ["| re-scoring | latents | explanations | Spearman J | Spearman S |", "|---|---:|---:|---:|---:|"]
-    for key, name in (("reliability_retest", "same scorer, new shuffle seed (43)"),
-                      ("reliability_altscorer", "Llama-3.3-70B as scorer")):
+    # Short labels: long ones wrap into tall rows, and in the PDF a tall longtable pushed the next
+    # figure and heading off the page.
+    # pandoc sizes the PDF's columns by the dash counts of the separator row.
+    lines = ["| second scoring (Spearman) | contexts | latents | expl. | J pooled | S pooled | J within | S within |",
+             "|" + "-" * 24 + "|" + "-" * 14 + "|" + "|".join(["-" * 7 + ":"] * 6) + "|"]
+    for key, name, contexts in (
+            ("reliability_retest", "new shuffle seed (43)", "same 50"),
+            ("reliability_altscorer", "Llama-3.3-70B scorer", "same 50"),
+            ("reliability_split_half", "other half of contexts", "disjoint 25/25")):
         if key in numbers:
             r = numbers[key]
-            lines.append(f"| {name} | {r['n_latents']} | {r['n_explanations']} | {r['spearman_j']:.3f} | {r['spearman_s']:.3f} |")
+            lines.append(f"| {name} | {contexts} | {r['n_latents']} | {r['n_explanations']} | {r['spearman_j']:.3f} "
+                         f"| {r['spearman_s']:.3f} | {r['spearman_j_within']:.3f} | {r['spearman_s_within']:.3f} |")
     return "\n".join(lines)
 
 
@@ -112,9 +119,12 @@ def render(template: str, numbers: dict) -> str:
 def render_all(sample: str = "main") -> list[Path]:
     """templates/<path> -> <path> for every template file (README.md, paper/, reports/)."""
     numbers = json.loads((config.RESULTS_DIR / sample / "numbers.json").read_text())
-    pilot = config.RESULTS_DIR / "pilot" / "numbers.json"
-    if pilot.exists():  # the pilot report cites its own (debugging-only) numbers
-        numbers["pilot"] = json.loads(pilot.read_text())
+    # The pilot report and the paper's appendix cite the (debugging-only) pilot runs' own numbers,
+    # including the discarded first run that was seen before PREREG deviation 2.
+    for key, folder in (("pilot", "pilot"), ("pilot_discarded", "pilot_discarded_old_negatives")):
+        path = config.RESULTS_DIR / folder / "numbers.json"
+        if path.exists():
+            numbers[key] = json.loads(path.read_text())
     written = []
     for tpl in sorted((config.ROOT / "templates").rglob("*.md")):
         target = config.ROOT / tpl.relative_to(config.ROOT / "templates")
