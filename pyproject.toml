@@ -7,25 +7,31 @@ authors = [
     { name = "BurnyCoder", email = "happymancz@email.cz" }
 ]
 requires-python = ">=3.12"
+# Every package the code imports directly is listed, even if delphi or sae-lens already pulls it in.
 dependencies = [
+    # [visualize]: delphi.log.result_analysis (our balanced-accuracy code) imports plotly at module level.
     "eai-delphi[visualize]",
+    "datasets>=5.1.0",
     "matplotlib>=3.11.2",
-    "pandas>=3.1.0",
+    "numpy>=2.3.5",
+    "pandas>=3.1.1",
     "python-dotenv>=1.2.4",
-    "sae-lens>=6.54.12",
+    "sae-lens>=6.55.0",
     "scipy>=1.18.1",
     "tiktoken>=0.14.0",
+    "torch>=2.13.0",
+    "transformer-lens>=3.9.0",
 ]
 
 [build-system]
-requires = ["uv_build>=0.11.27,<0.12.0"]
+requires = ["uv_build>=0.13.6,<0.14.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
     "pytest>=9.2.0",
-    "pytest-asyncio>=1.4.1",
 ]
 
 [tool.uv.sources]
+# Pinned to a commit of main: the PyPI release (0.1.3) lacks fixes this project relies on.
 eai-delphi = { git = "https://github.com/EleutherAI/delphi", rev = "4fea06e6e8b68eeaf302474325fca13df95c5d6f" }
