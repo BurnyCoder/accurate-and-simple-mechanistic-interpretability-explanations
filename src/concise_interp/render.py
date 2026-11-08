@@ -15,15 +15,9 @@ import re
 from pathlib import Path
 
 from . import config
+from .conditions import LABELS, ORDER, ROLE
 
 PLACEHOLDER = re.compile(r"\{\{\s*([^}:]+?)\s*(?::([^}]*))?\}\}")
-LABELS = {"gpt35": "gpt-3.5-turbo (Neuronpedia)", "gpt4omini": "gpt-4o-mini (Neuronpedia)",
-          "top_token": "top-token baseline", "random": "random-explanation control",
-          "gen_unconstrained": "Llama-3.1-70B, delphi default prompt",
-          **{f"gen_b{b}": f"Llama-3.1-70B, ~{b} words" for b in config.BUDGETS}}
-ROLE = {"gpt35": "existing", "gpt4omini": "existing", "top_token": "baseline", "random": "control",
-        **{f"gen_b{b}": "Exp 2" for b in config.BUDGETS}, "gen_unconstrained": "Exp 2"}
-ORDER = ["random", "top_token", "gpt35", "gpt4omini", *[f"gen_b{b}" for b in config.BUDGETS], "gen_unconstrained"]
 
 
 def lookup(numbers: dict, path: str):

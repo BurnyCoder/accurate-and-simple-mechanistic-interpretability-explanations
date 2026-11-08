@@ -16,16 +16,18 @@ import numpy as np
 import pandas as pd
 
 from . import config
-from .analysis import BUDGET_CONDITIONS, condition_ci, wide, with_half_life
+from .analysis import condition_ci
+from .conditions import BUDGET_CONDITIONS, ORDER, SHORT_LABELS as LABELS
+from .metrics import s_wide
 
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 RAMP = ["#b7d3f6", "#86b6ef", "#5598e7", "#2a78d6", "#1c5cab"]  # H = 5..80, light -> dark
-LABELS = {"gpt35": "gpt-3.5-turbo (Neuronpedia)", "gpt4omini": "gpt-4o-mini (Neuronpedia)",
-          "top_token": "top-token baseline", "random": "random control",
-          "gen_unconstrained": "Llama-70B unconstrained",
-          **{f"gen_b{b}": f"Llama-70B ~{b} words" for b in config.BUDGETS}}
-ORDER = ["random", "top_token", "gpt35", "gpt4omini", *BUDGET_CONDITIONS, "gen_unconstrained"]
+
+
+def _budget_tokens(df: pd.DataFrame) -> list[float]:
+    """Median explanation length of each Exp 2 budget: the x positions of the budget curves."""
+    return [df[df.condition == c].n_tokens.median() for c in BUDGET_CONDITIONS]
 
 
 def _style(ax):
@@ -72,7 +74,7 @@ def fig_conditions(df, path):
 
 
 def fig_budget_curves(df, path):
-    tok = [df[df.condition == c].n_tokens.median() for c in BUDGET_CONDITIONS]
+    tok = _budget_tokens(df)
     fig, ax = plt.subplots(figsize=(6.5, 4))
     for col, color, name in (("j", BLUE, "J (accuracy only)"), ("s", ORANGE, f"S (H = {config.HALF_LIFE_TOKENS:g})")):
         st = [condition_ci(df, col, c) for c in BUDGET_CONDITIONS]
@@ -94,11 +96,11 @@ def fig_budget_curves(df, path):
 
 
 def fig_h_sweep(df, path):
-    tok = [df[df.condition == c].n_tokens.median() for c in BUDGET_CONDITIONS]
+    tok = _budget_tokens(df)
     fig, ax = plt.subplots(figsize=(6.5, 4))
     finite = [h for h in config.H_SWEEP if not math.isinf(h)]
     for h, color in [*zip(finite, RAMP), (math.inf, INK)]:
-        s = wide(df.assign(s=with_half_life(df, h)), "s")
+        s = s_wide(df, h)
         means = [s[c].mean() for c in BUDGET_CONDITIONS]
         ax.plot(tok, means, "-o", color=color, lw=2, ms=5)
         ax.annotate("H = ∞ (max(J,0), no length factor)" if math.isinf(h) else f"H = {h:g}", (tok[-1], means[-1]),
