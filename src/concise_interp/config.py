@@ -78,3 +78,9 @@ H_SWEEP = (5.0, 10.0, 20.0, 40.0, 80.0, math.inf)
 N_BOOTSTRAP = 10_000
 SEED_ANALYSIS = 0
 N_H4_SPLITS = 20  # exploratory: H4 re-run on this many random cross-fit splits (seed 0 = pre-registered)
+
+# --- Pre-registered decision thresholds (PREREG section 6).
+ALPHA = 0.05  # significance level of every confirmatory test (Holm-adjusted for H3)
+H1_RANDOM_TOL = 0.05  # H1: the random control's mean J may differ from 0 by less than this
+H4_MAX_LENGTH_RATIO = 0.8  # H4: median length of argmax-S picks <= this x that of argmax-J picks
+H4_MAX_J_LOSS = 0.05  # H4: mean held-out J lost by picking by S instead of J

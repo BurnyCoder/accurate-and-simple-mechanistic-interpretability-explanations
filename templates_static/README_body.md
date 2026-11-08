@@ -66,11 +66,12 @@ bash scripts/build_paper.sh
 
 | Path | What it is |
 |---|---|
-| `run.py` | Entry point; runs the phases in order. |
+| `run.py` | Command-line entry point; dispatches to the phases in `src/concise_interp/pipeline.py`. |
 | `src/concise_interp/length_score.py` | **The method:** J, L, the length factor, S. |
 | `src/concise_interp/{data,negatives,records,baselines,experiment}.py` | Data, verified negatives, delphi records, baselines and controls, jobs. |
-| `src/concise_interp/{clients,scoring,explain}.py` | delphi's OpenRouter client (with logging), DetectionScorer, DefaultExplainer with a word budget. |
-| `src/concise_interp/{analysis,figures,render}.py` | Statistics, figures, docs rendered from results. |
+| `src/concise_interp/{clients,scoring,explain,jsonl}.py` | delphi's OpenRouter client (with logging), DetectionScorer, DefaultExplainer with a word budget, resumable results. |
+| `src/concise_interp/{metrics,stats,hypotheses,analysis,checks}.py` | Per-explanation BA/J/S, statistics, H1–H4, exploratory analyses, test-set audits. |
+| `src/concise_interp/{figures,render,conditions}.py` | Figures, docs rendered from results, condition names and labels. |
 | `tests/` | pytest suite. |
 | `PREREG.md` | Pre-registration (committed before any results) and its deviations. |
 | `templates/` | Sources of this README, `reports/` and `paper/`. Every number is a placeholder filled from `results/main/numbers.json`. |

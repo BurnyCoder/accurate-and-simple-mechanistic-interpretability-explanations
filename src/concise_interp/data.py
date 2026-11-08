@@ -81,28 +81,25 @@ def count_examples(paths: list[Path]) -> dict[int, tuple[int, int]]:
     return {k: (a, z) for k, (a, z) in counts.items()}
 
 
+def _filters(latent: int, explanations: dict[int, list[dict]], counts: dict[int, tuple[int, int]]) -> dict[str, bool]:
+    """The three PREREG eligibility filters for one latent."""
+    n_act, n_zero = counts[latent]
+    return {"both_llm_explanations": {"gpt35", "gpt4omini"} <= {e["source"] for e in explanations.get(latent, [])},
+            "min_activating": n_act >= config.MIN_ACTIVATING,
+            "min_zero_rows": n_zero >= config.MIN_ZERO}
+
+
 def filter_counts(explanations: dict[int, list[dict]], counts: dict[int, tuple[int, int]]) -> dict[str, int]:
     """How many latents pass each eligibility filter on its own (reported next to the joint pass)."""
-    both = sum({"gpt35", "gpt4omini"} <= {e["source"] for e in explanations.get(k, [])} for k in counts)
-    return {"both_llm_explanations": both,
-            "min_activating": sum(a >= config.MIN_ACTIVATING for a, _ in counts.values()),
-            "min_zero_rows": sum(z >= config.MIN_ZERO for _, z in counts.values())}
+    passed = [_filters(k, explanations, counts) for k in counts]
+    return {name: sum(p[name] for p in passed) for name in ("both_llm_explanations", "min_activating", "min_zero_rows")}
 
 
 def eligible_latents(explanations: dict[int, list[dict]], counts: dict[int, tuple[int, int]]) -> list[int]:
     """PREREG eligibility: both LLM explanations, >=45 activating rows, >=25 zero rows,
     and not one of delphi's few-shot latents."""
-    out = []
-    for latent, (n_act, n_zero) in counts.items():
-        sources = {e["source"] for e in explanations.get(latent, [])}
-        if (
-            {"gpt35", "gpt4omini"} <= sources
-            and n_act >= config.MIN_ACTIVATING
-            and n_zero >= config.MIN_ZERO
-            and latent not in config.FEWSHOT_LATENTS
-        ):
-            out.append(latent)
-    return sorted(out)
+    return sorted(k for k in counts if all(_filters(k, explanations, counts).values())
+                  and k not in config.FEWSHOT_LATENTS)
 
 
 def draw_samples(eligible: list[int]) -> dict[str, list[int]]:

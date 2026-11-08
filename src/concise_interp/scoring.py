@@ -8,7 +8,6 @@ analysis can recompute balanced accuracy, J and S, and split samples for cross-f
 
 import asyncio
 import copy
-import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -19,6 +18,7 @@ from delphi.scorers import DetectionScorer
 
 from . import config
 from .clients import LoggedOpenRouter, job_tag
+from .jsonl import append_jsonl, done_keys
 from .records import sample_key
 
 log = logging.getLogger(__name__)
@@ -49,16 +49,12 @@ async def score_explanation(client, record: LatentRecord, explanation: str, shuf
     return (await scorer(job_record)).score
 
 
-def _done_keys(path: Path) -> set[tuple[int, str]]:
-    if not path.exists():
-        return set()
-    return {(r["latent"], r["condition"]) for r in map(json.loads, path.open(encoding="utf-8"))}
-
-
 async def run_scoring(jobs: list[Job], records: dict, sample_ids: dict, out_path: Path,
                       scorer_model: str, shuffle_seed: int, provider: dict | None) -> None:
-    """Score all jobs not yet in `out_path` (resumable JSONL, one row per job)."""
-    done = _done_keys(out_path)
+    """Score all jobs not yet in `out_path` (resumable JSONL, one row per job). A job whose every
+    prediction failed is not saved: delphi turns an API outage into None predictions, and PREREG
+    section 8 retries API failures, so the next run scores it again."""
+    done = done_keys(out_path)
     todo = [j for j in jobs if (j.latent, j.condition) not in done]
     log.info("score -> %s: %d jobs to run (%d already done), scorer=%s seed=%d",
              out_path.name, len(todo), len(done), scorer_model, shuffle_seed)
@@ -73,12 +69,14 @@ async def run_scoring(jobs: list[Job], records: dict, sample_ids: dict, out_path
         samples = [{"id": ids[sample_key(o.str_tokens, o.activating)], "activating": o.activating,
                     "prediction": o.prediction, "quantile": o.distance if o.activating else None}
                    for o in outputs]
-        row = {"latent": job.latent, "condition": job.condition, "explanation": job.explanation,
-               "scorer_model": scorer_model, "shuffle_seed": shuffle_seed,
-               "time": datetime.now(timezone.utc).isoformat(), "samples": samples}
-        with out_path.open("a", encoding="utf-8") as f:  # one write per job: crash-safe resume
-            f.write(json.dumps(row) + "\n")
         n_failed = sum(s["prediction"] is None for s in samples)
+        if n_failed == len(samples):
+            log.error("score %s/%s: every prediction failed (API outage?); not saved, rerun to retry",
+                      job.latent, job.condition)
+            return
+        append_jsonl(out_path, {"latent": job.latent, "condition": job.condition, "explanation": job.explanation,
+                                "scorer_model": scorer_model, "shuffle_seed": shuffle_seed,
+                                "time": datetime.now(timezone.utc).isoformat(), "samples": samples})
         log.info("scored %s/%s failed=%d/%d", job.latent, job.condition, n_failed, len(samples))
 
     await asyncio.gather(*(one(j) for j in todo))

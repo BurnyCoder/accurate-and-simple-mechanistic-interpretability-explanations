@@ -1,6 +1,7 @@
 """Tests for the analysis helpers: per-explanation metrics, bootstrap CIs, cross-fit selection.
 
-Global context: every number in README/paper comes from `analysis.py` reading results/*.jsonl;
+Global context: every number in README/paper comes from `analysis.py` (with `metrics`, `stats`,
+`hypotheses`) reading results/*.jsonl;
 these tests check the statistics on small inputs whose answers are known by hand.
 """
 
@@ -10,24 +11,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from concise_interp import analysis, config
-from concise_interp.analysis import (
-    BUDGET_CONDITIONS,
-    agreement,
-    api_usage,
-    best_budget_counts,
-    bootstrap_ci,
-    condition_table,
-    crossfit_halves,
-    crossfit_selection,
-    explanation_metrics,
-    holm,
-    mean_ci,
-    split_half_reliability,
-    wide,
-    without_samples,
-)
+from concise_interp import config, hypotheses
+from concise_interp.analysis import api_usage, best_budget_counts, condition_table, split_half_reliability
+from concise_interp.conditions import BUDGET_CONDITIONS
 from concise_interp.data import filter_counts
+from concise_interp.hypotheses import crossfit_halves, crossfit_selection
+from concise_interp.metrics import explanation_metrics, without_samples
+from concise_interp.stats import agreement, bootstrap_ci, holm, mean_ci, wide
 
 
 def _samples(tp, fn, tn, fp, failed=0):
@@ -110,9 +100,9 @@ def test_h4_passes_its_seed_to_the_cross_fit_split(monkeypatch):
         seen.append(seed)
         raise StopIteration  # the split is all this test needs
 
-    monkeypatch.setattr(analysis, "crossfit_halves", fake_halves)
+    monkeypatch.setattr(hypotheses, "crossfit_halves", fake_halves)
     with pytest.raises(StopIteration):
-        analysis.h4(pd.DataFrame({"condition": []}), seed=7)
+        hypotheses.h4(pd.DataFrame({"condition": []}), seed=7)
     assert seen == [7]
 
 
@@ -121,8 +111,8 @@ def test_h4_split_sensitivity_runs_one_h4_per_seed_and_summarises(monkeypatch):
         return {"supported": seed != 2, "j_loss_argmaxJ_minus_argmaxS": {"mean": 0.01 * seed},
                 "length_reduction": 0.3, "argmaxS_minus_argminL": {"mean": 0.1}}
 
-    monkeypatch.setattr(analysis, "h4", fake_h4)
-    out = analysis.h4_split_sensitivity(pd.DataFrame(), n_splits=4)  # seeds 0..3
+    monkeypatch.setattr(hypotheses, "h4", fake_h4)
+    out = hypotheses.h4_split_sensitivity(pd.DataFrame(), n_splits=4)  # seeds 0..3
     assert out["n_splits"] == 4 and out["n_supported"] == 3
     assert out["j_loss"] == pytest.approx({"mean": 0.015, "min": 0.0, "max": 0.03})
 
@@ -185,10 +175,12 @@ def test_api_usage_counts_providers_per_output(tmp_path, monkeypatch):
     (tmp_path / "1_score_main.log").write_text(
         meta.format(tag="explain/1/gen_b2", p="DeepInfra")
         + "x INFO concise_interp.scoring: score -> scores.jsonl: 1 jobs to run\n"
-        + meta.format(tag="score/1/gpt35", p="DeepInfra") + meta.format(tag="score/1/gpt35", p="Groq"),
+        + meta.format(tag="score/1/gpt35", p="DeepInfra") + meta.format(tag="score/1/gpt35", p="Groq")
+        + "2026-10-29 03:42:10,607 ERROR delphi: Parsing selections failed: ValueError('No match found in string')\n",
         encoding="utf-8")
     monkeypatch.setattr(config, "LOG_DIR", tmp_path)
     usage = api_usage("*score_main.log")
+    assert usage["parse_errors"] == 1 and usage["api_errors"] == 0
     assert usage["calls"] == 3 and usage["cost_usd"] == pytest.approx(1.5) and usage["total_tokens"] == 30
     assert usage["providers"] == {"explain": {"DeepInfra": 1}, "scores": {"DeepInfra": 1, "Groq": 1}}
 
