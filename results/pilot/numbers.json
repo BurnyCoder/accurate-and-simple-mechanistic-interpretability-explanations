@@ -47,7 +47,9 @@
     "scores": {
      "DeepInfra": 2000
     }
-   }
+   },
+   "parse_errors": 0,
+   "api_errors": 0
   },
   "reliability": {
    "calls": 10040,
@@ -65,7 +67,9 @@
      "SambaNova": 3,
      "Groq": 2
     }
-   }
+   },
+   "parse_errors": 5,
+   "api_errors": 0
   }
  },
  "n_latents": 10,
@@ -555,6 +559,33 @@
   "supported": true
  },
  "exploratory": {
+  "per_latent_best_budget": {
+   "gen_b2": 5,
+   "gen_b5": 3,
+   "gen_b10": 0,
+   "gen_b20": 1,
+   "gen_b40": 1
+  },
+  "per_latent_best_intermediate": 4,
+  "h4_split_sensitivity": {
+   "n_splits": 20,
+   "n_supported": 16,
+   "j_loss": {
+    "mean": 0.03294871794871795,
+    "min": -0.0012820512820512886,
+    "max": 0.06346153846153847
+   },
+   "length_reduction": {
+    "mean": 0.39370388286893704,
+    "min": 0.28125,
+    "max": 0.5526315789473684
+   },
+   "s_minus_shortest": {
+    "mean": 0.13533653846153848,
+    "min": 0.10384615384615381,
+    "max": 0.1605769230769231
+   }
+  },
   "gpt4omini_minus_gpt35_J": {
    "mean": 0.10000000000000005,
    "lo": -0.03199999999999994,
@@ -780,6 +811,62 @@
   "spearman_j_vs_tokens_all": 0.07245065475211272,
   "n_humans": 0,
   "humans": []
+ },
+ "checks": {
+  "n_test_positives": 250,
+  "train_overlap": {
+   "min_shared_tokens": 8,
+   "n": 1,
+   "pct": 0.4,
+   "n_latents": 1
+  },
+  "eot": {
+   "pct_positives": 6.8,
+   "pct_negatives": 0.0,
+   "n_latents": 7,
+   "random_positive_rate": {
+    "listed": 0.17647058823529413,
+    "other": 0.12446351931330472,
+    "n_listed": 17
+   }
+  },
+  "activation_ratio": {
+   "median_by_bin": [
+    0.7995536012634583,
+    0.6590486285344763,
+    0.48523850211971487,
+    0.3238495626007667,
+    0.1707704643425827
+   ],
+   "min": 0.10191309838886153
+  },
+  "without_eot_positives": {
+   "supported": {
+    "H1": true,
+    "H2": false,
+    "H3": false,
+    "H4": true
+   },
+   "random_j": -0.027954545454545433,
+   "s_by_budget": {
+    "gen_b2": 0.5401568097802845,
+    "gen_b5": 0.5009755917033009,
+    "gen_b10": 0.4257151217602185,
+    "gen_b20": 0.32589772484779866,
+    "gen_b40": 0.15124255819970708,
+    "gen_unconstrained": 0.2218075816722031
+   },
+   "h4_j_loss": 0.032167832167832144,
+   "h4_length_reduction": 0.25
+  }
+ },
+ "reliability_split_half": {
+  "n_explanations": 90,
+  "n_latents": 10,
+  "spearman_j": 0.8273824911768403,
+  "spearman_j_within": 0.6212377007022042,
+  "spearman_s": 0.9193060587077941,
+  "spearman_s_within": 0.8809880767283718
  },
  "reliability_min_spearman": null
 }

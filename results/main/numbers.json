@@ -47,7 +47,9 @@
     "scores": {
      "DeepInfra": 20020
     }
-   }
+   },
+   "parse_errors": 7,
+   "api_errors": 0
   },
   "reliability": {
    "calls": 10040,
@@ -65,7 +67,9 @@
      "SambaNova": 3,
      "Groq": 2
     }
-   }
+   },
+   "parse_errors": 5,
+   "api_errors": 0
   }
  },
  "n_latents": 200,
