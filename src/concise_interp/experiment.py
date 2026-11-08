@@ -5,13 +5,13 @@ latent in a sample it fixes the example split once (seed 0), so every condition 
 latent is scored on the same 50 test contexts.
 """
 
-import json
 import logging
 import random
 from pathlib import Path
 
 from . import config
 from .baselines import random_derangement, top_token_explanation
+from .jsonl import read_jsonl
 from .negatives import load_negatives
 from .records import build_record, sample_ids_for, split_examples
 from .scoring import Job
@@ -54,9 +54,8 @@ def exp1_jobs(latents_data: dict[int, dict], latent_ids: list[int], splits: dict
 
 def exp2_jobs(generated_path: Path, latent_ids: list[int]) -> list[Job]:
     """Generated explanations (one per word budget) that parsed successfully."""
-    if not generated_path.exists():
-        return []
-    rows = [r for r in map(json.loads, generated_path.open(encoding="utf-8")) if r["latent"] in set(latent_ids)]
+    wanted = set(latent_ids)
+    rows = [r for r in read_jsonl(generated_path) if r["latent"] in wanted]
     failed = [r for r in rows if not r["parsed"]]
     if failed:
         log.warning("%d generated explanations failed to parse and are not scored", len(failed))

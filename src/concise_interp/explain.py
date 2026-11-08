@@ -7,7 +7,6 @@ train contexts) and append one sentence with a word budget.
 """
 
 import asyncio
-import json
 import logging
 from dataclasses import dataclass
 
@@ -15,6 +14,7 @@ from delphi.explainers import DefaultExplainer
 
 from . import config
 from .clients import LoggedOpenRouter, job_tag
+from .jsonl import append_jsonl, done_keys
 
 log = logging.getLogger(__name__)
 BUDGET_INSTRUCTION = "\nYour final explanation (the [EXPLANATION]: line) must be approximately {budget} words long."
@@ -41,9 +41,7 @@ class BudgetExplainer(DefaultExplainer):
 
 async def generate_explanations(records: dict, out_path, budgets=(*config.BUDGETS, None)) -> None:
     """One explanation per (latent, budget), appended to `out_path` (JSONL, resumable)."""
-    done = set()
-    if out_path.exists():
-        done = {(r["latent"], r["condition"]) for r in map(json.loads, out_path.open())}
+    done = done_keys(out_path)
     client = LoggedOpenRouter(config.EXPLAINER_MODEL, provider=config.MAIN_PROVIDER, max_tokens=500)
     sem = asyncio.Semaphore(config.MAX_CONCURRENCY)
 
@@ -58,10 +56,9 @@ async def generate_explanations(records: dict, out_path, budgets=(*config.BUDGET
             except RuntimeError as e:  # delphi raises after all API retries fail
                 log.error("explain %s %s failed, will retry on next run: %r", latent, condition, e)
                 return
-        with out_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps({"latent": latent, "condition": condition, "budget": budget,
+        append_jsonl(out_path, {"latent": latent, "condition": condition, "budget": budget,
                                 "explanation": result.explanation,
-                                "parsed": result.explanation != PARSE_FAILURE}) + "\n")
+                                "parsed": result.explanation != PARSE_FAILURE})
         log.info("explained %s %s -> %r", latent, condition, result.explanation)
 
     jobs = [(lat, b) for lat in records for b in budgets if (lat, condition_name(b)) not in done]

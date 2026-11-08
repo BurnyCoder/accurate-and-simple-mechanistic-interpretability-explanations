@@ -33,7 +33,11 @@ class _MergeIntoBody:
 
 
 class LoggedOpenRouter(OpenRouter):
+    """delphi's OpenRouter client with full logging and fixed request fields (provider, seed)."""
+
     def __init__(self, model: str, provider: dict | None = None, seed: int | None = 0, **kwargs):
+        if not config.OPENROUTER_API_KEY:  # otherwise every call fails MAX_RETRIES times with "Bearer None"
+            raise RuntimeError("OPENROUTER_API_KEY is not set: copy .env.example to .env and fill it in")
         super().__init__(model, api_key=config.OPENROUTER_API_KEY, base_url=config.OPENROUTER_URL, **kwargs)
         # OpenRouter provider routing: https://openrouter.ai/docs/features/provider-routing
         extra = {k: v for k, v in {"provider": provider, "seed": seed}.items() if v is not None}
