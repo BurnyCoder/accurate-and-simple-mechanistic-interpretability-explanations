@@ -69,6 +69,16 @@ def test_paired_tests_that_a_is_greater_than_b():
     assert paired(w, "b", "a")["p_greater"] > 0.99  # the reverse direction is not significant
 
 
+def test_paired_treats_a_float_noise_difference_as_zero():
+    # 0.1 + 0.2 - 0.3 = 5.6e-17: unrounded, the Wilcoxon test would rank it as a ninth positive
+    # difference (p = 1/512) instead of dropping it as a zero (p = 1/256).
+    rest = list(np.arange(1, 9.0))
+    noisy = pd.DataFrame({"a": [0.1 + 0.2] + rest, "b": [0.3] + [0.0] * 8})
+    clean = pd.DataFrame({"a": [0.3] + rest, "b": [0.3] + [0.0] * 8})
+    assert paired(noisy, "a", "b")["p_greater"] == pytest.approx(paired(clean, "a", "b")["p_greater"])
+    assert paired(clean, "a", "b")["p_greater"] == pytest.approx(1 / 256)
+
+
 def test_two_sided_returns_p_one_when_every_difference_is_zero():
     w = pd.DataFrame({"a": [0.5] * 5, "b": [0.5] * 5})
     assert two_sided(w, "a", "b")["two_sided_p"] == 1.0

@@ -44,17 +44,24 @@ def wide(df: pd.DataFrame, value: str) -> pd.DataFrame:
     return df.pivot_table(index="latent", columns="condition", values=value, aggfunc="first")
 
 
+def _differences(df_wide: pd.DataFrame, a: str, b: str) -> pd.Series:
+    """Per-latent a - b over latents having both, rounded to 12 decimals (see `paired`)."""
+    return (df_wide[a] - df_wide[b]).dropna().round(12)
+
+
 def paired(df_wide: pd.DataFrame, a: str, b: str) -> dict:
     """Mean of a - b over latents having both, with bootstrap CI and one-sided Wilcoxon
-    signed-rank test (a > b; Wilcoxon 1945, https://doi.org/10.2307/3001968)."""
-    d = (df_wide[a] - df_wide[b]).dropna()
+    signed-rank test (a > b; Wilcoxon 1945, https://doi.org/10.2307/3001968). Differences are
+    rounded to 12 decimals so float noise cannot split tied |d| or turn a zero into a tiny nonzero
+    (the test drops zeros and averages the ranks of ties)."""
+    d = _differences(df_wide, a, b)
     p = float(stats.wilcoxon(d, alternative="greater").pvalue) if (d != 0).any() else 1.0
     return {**mean_ci(d), "p_greater": p}
 
 
 def two_sided(df_wide: pd.DataFrame, a: str, b: str) -> dict:
     """`paired` plus the two-sided Wilcoxon p (used for post-hoc comparisons with no direction)."""
-    d = (df_wide[a] - df_wide[b]).dropna()
+    d = _differences(df_wide, a, b)
     return paired(df_wide, a, b) | {"two_sided_p": float(stats.wilcoxon(d).pvalue) if (d != 0).any() else 1.0}
 
 
