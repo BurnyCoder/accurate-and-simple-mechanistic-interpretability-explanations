@@ -14,5 +14,5 @@
 | Random control | Another latent's explanation. | A wrong label; it should score ~0. |
 | Verified negatives | Random OpenWebText snippets on which the latent's activation is exactly 0 (checked by running GPT-2 small + the SAE). | Snippets where the detector is known to be off. |
 | Cross-fitting | Choose an explanation using half of the test snippets, and measure it on the other half, then swap ([Chernozhukov et al. 2018](https://doi.org/10.1111/ectj.12097)). | Don't grade yourself on the questions you used to choose your answer. |
-| Bootstrap CI | 95% percentile interval from resampling latents 10,000 times ([Efron 1979](https://doi.org/10.1214/aos/1176344552)). | The range the average would plausibly fall in with a different set of latents. |
+| Bootstrap CI | 95% percentile interval from resampling latents 10,000 times ([Efron 1979](https://doi.org/10.1214/aos/1176344552); [Efron and Tibshirani 1993](https://doi.org/10.1201/9780429246593), ch. 13). | The range the average would plausibly fall in with a different set of latents. |
 | Wilcoxon / Holm | Paired signed-rank test ([Wilcoxon 1945](https://doi.org/10.2307/3001968)); Holm corrects p-values for running several tests ([Holm 1979](https://www.jstor.org/stable/4615733)). | Is the difference real, after accounting for running many tests? |

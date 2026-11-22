@@ -40,7 +40,7 @@ The median length rises with every budget step, so the explainer followed the bu
 
 Every intermediate budget beats ~40 words, but none beats ~2 words. On average, the accuracy gained by writing more is smaller than the length cost at H = 20.
 
-From ~2 to ~10 words, mean J rises by a factor of {{H3.illustration.j_ratio_b10_over_b2:.2f}}. Over the same stretch, the length factor at the median lengths ({{by_condition.gen_b2.tokens_median:.0f}} → {{by_condition.gen_b10.tokens_median:.0f}} tokens) falls by a factor of {{H3.illustration.factor_ratio_b10_over_b2:.2f}}. The pre-registered prediction is therefore falsified.
+From ~2 to ~10 words, mean J rises by a factor of {{H3.illustration.j_ratio_b10_over_b2:.2f}}. Over the same stretch, the length factor at the median lengths ({{by_condition.gen_b2.tokens_median:.0f}} → {{by_condition.gen_b10.tokens_median:.0f}} tokens) falls by a factor of {{H3.illustration.factor_ratio_b10_over_b2:.2f}}. This is why the pre-registered prediction fails.
 
 ![J and S vs length](../figures/fig3_budget_curves.png)
 
@@ -75,14 +75,14 @@ These comparisons were chosen after seeing the data, and the budget tested at ea
 - **Accuracy loss:** J drops by {{H4.j_loss_argmaxJ_minus_argmaxS.mean:.3f}} [{{H4.j_loss_argmaxJ_minus_argmaxS.lo:.3f}}, {{H4.j_loss_argmaxJ_minus_argmaxS.hi:.3f}}] (criterion: ≤ 0.05).
 - **Versus shortest:** argmax-S beats argmin-L by {{H4.argmaxS_minus_argminL.mean:.3f}} [{{H4.argmaxS_minus_argminL.lo:.3f}}, {{H4.argmaxS_minus_argminL.hi:.3f}}] J (criterion: CI > 0).
 
-All three pre-registered criteria hold. They also hold in {{exploratory.h4_split_sensitivity.n_supported}} of {{exploratory.h4_split_sensitivity.n_splits}} other random half-splits (exploratory): J loss {{exploratory.h4_split_sensitivity.j_loss.min:.3f}}–{{exploratory.h4_split_sensitivity.j_loss.max:.3f}}, length reduction {{exploratory.h4_split_sensitivity.length_reduction.min:.0%}}–{{exploratory.h4_split_sensitivity.length_reduction.max:.0%}} (mean {{exploratory.h4_split_sensitivity.length_reduction.mean:.0%}}), margin over the shortest {{exploratory.h4_split_sensitivity.s_minus_shortest.min:.3f}}–{{exploratory.h4_split_sensitivity.s_minus_shortest.max:.3f}}.
+All three pre-registered criteria hold. They hold in {{exploratory.h4_split_sensitivity.n_supported}} of {{exploratory.h4_split_sensitivity.n_splits}} random half-splits (consecutive seeds from 0, including the pre-registered one; exploratory): J loss {{exploratory.h4_split_sensitivity.j_loss.min:.3f}}–{{exploratory.h4_split_sensitivity.j_loss.max:.3f}}, length reduction {{exploratory.h4_split_sensitivity.length_reduction.min:.0%}}–{{exploratory.h4_split_sensitivity.length_reduction.max:.0%}} (mean {{exploratory.h4_split_sensitivity.length_reduction.mean:.0%}}), margin over the shortest {{exploratory.h4_split_sensitivity.s_minus_shortest.min:.3f}}–{{exploratory.h4_split_sensitivity.s_minus_shortest.max:.3f}}.
 
 Which candidates got picked (counts over {{H4.n_selections}} selections: 2 halves × {{n_latents}} latents):
 
 - argmax J: ~2 words {{H4.picked_counts.argmax_j.gen_b2}}, ~5 {{H4.picked_counts.argmax_j.gen_b5}}, ~10 {{H4.picked_counts.argmax_j.gen_b10}}, ~20 {{H4.picked_counts.argmax_j.gen_b20}}, ~40 {{H4.picked_counts.argmax_j.gen_b40}}, unconstrained {{H4.picked_counts.argmax_j.gen_unconstrained}}, gpt-3.5 {{H4.picked_counts.argmax_j.gpt35}}, gpt-4o-mini {{H4.picked_counts.argmax_j.gpt4omini}}.
 - argmax S: ~2 words {{H4.picked_counts.argmax_s.gen_b2}}, ~5 {{H4.picked_counts.argmax_s.gen_b5}}, ~10 {{H4.picked_counts.argmax_s.gen_b10}}, ~20 {{H4.picked_counts.argmax_s.gen_b20}}, ~40 {{H4.picked_counts.argmax_s.gen_b40}}, unconstrained {{H4.picked_counts.argmax_s.gen_unconstrained}}, gpt-3.5 {{H4.picked_counts.argmax_s.gpt35}}, gpt-4o-mini {{H4.picked_counts.argmax_s.gpt4omini}}.
 
-Plain J often picks short explanations too, likely because ties are broken toward the shorter one and J is noisy on 25 contexts (we did not measure how often ties occur). Even so, S moves picks away from the long budgets almost completely.
+Plain J often picks short explanations too. On 25 contexts J takes few distinct values: the best J is shared by at least two candidates in {{H4.tie_rate.argmax_j:.0%}} of argmax-J selections (best S: {{H4.tie_rate.argmax_s:.0%}} of argmax-S selections), and ties go to the shorter explanation. Candidates tied in both score and length are broken uniformly at random with a fixed seed. Even so, S moves picks away from the long budgets almost completely.
 
 ![Selection](../figures/fig5_selection.png)
 

@@ -18,7 +18,7 @@ In log space, `log S = log J − (ln 2 / H)·L`: a constant cost per token, a fi
 
 - Explanations and activating contexts come from [Neuronpedia's public export](https://neuronpedia-datasets.s3.us-east-1.amazonaws.com/index.html) for GPT-2 small (`6-res-jb`, [Bloom 2024](https://www.lesswrong.com/posts/f9EgfLSurAiqRJySD/open-source-sparse-autoencoders-for-all-residual-stream)).
 - Non-activating contexts are random OpenWebText windows on which the same SAE is verified to be 0.
-- delphi's scorer and explainer run unmodified, with Llama-3.1-70B-Instruct via OpenRouter, the explainer and scorer model of Paulo et al. (§3.2, App. F).
+- delphi's scorer runs unmodified, and its explainer prompt gets one appended length sentence, with Llama-3.1-70B-Instruct via OpenRouter, the explainer and scorer model of Paulo et al. (§3.2, App. F).
 
 Everything was pre-registered in [PREREG.md](PREREG.md) before any results existed. **[Paper (PDF)](paper/paper.pdf)** · [Reports](reports/) · [Interactive explorer](https://burnycoder.github.io/accurate-and-simple-mechanistic-interpretability-explanations/) · [Methodology](docs/methodology.md) · [Scored data on Hugging Face](https://huggingface.co/datasets/BurnyCoder/length-penalized-autointerp-gpt2-small) ([collection](https://huggingface.co/collections/BurnyCoder/accurate-and-simple-interpretability-explanations-6ae2bbf0e413a206073deb4e))
 
@@ -26,8 +26,8 @@ Everything was pre-registered in [PREREG.md](PREREG.md) before any results exist
 
 {{data.n_latents_total}} latents in the SAE; {{n_latents}} sampled at random; {{n_explanations}} explanations scored; {{api_usage.score.calls}} LLM calls in the main run (US${{api_usage.score.cost_usd:.2f}}), plus {{api_usage.reliability.calls}} for the reliability re-scoring (US${{api_usage.reliability.cost_usd:.2f}}).
 
-- ✅ **The base scorer is valid.**
-  - Random explanations (another latent's explanation) score J = {{H1.random.mean:.3f}} [{{H1.random.lo:.3f}}, {{H1.random.hi:.3f}}], about chance.
+- ✅ **The base scorer passes the validity check (H1).**
+  - Random explanations (another latent's explanation) score J = {{H1.random.mean:.3f}} [{{H1.random.lo:.3f}}, {{H1.random.hi:.3f}}], about chance (the CI lies just below 0, within the pre-registered ±0.05).
   - Neuronpedia's gpt-4o-mini explanations score J = {{H1.gpt4omini.mean:.3f}} [{{H1.gpt4omini.lo:.3f}}, {{H1.gpt4omini.hi:.3f}}], and its gpt-3.5-turbo explanations {{H1.gpt35.mean:.3f}}.
 - ✅ **Longer explanations are more accurate, with diminishing returns.**
   - When Llama-3.1-70B is asked for ~2 vs ~40 words, J goes from {{H2.j_by_budget.gen_b2.mean:.3f}} to {{H2.j_by_budget.gen_b40.mean:.3f}} (+{{H2.rise_b40_minus_b2.mean:.3f}} [{{H2.rise_b40_minus_b2.lo:.3f}}, {{H2.rise_b40_minus_b2.hi:.3f}}]).
@@ -41,7 +41,7 @@ Everything was pre-registered in [PREREG.md](PREREG.md) before any results exist
   - Among 8 candidate explanations per latent, picking by S instead of plain detection J gives explanations {{H4.length_reduction:.0%}} shorter (median {{H4.median_tokens.argmax_s:.1f}} vs {{H4.median_tokens.argmax_j:.1f}} tokens).
   - The held-out J loss is only {{H4.j_loss_argmaxJ_minus_argmaxS.mean:.3f}} [{{H4.j_loss_argmaxJ_minus_argmaxS.lo:.3f}}, {{H4.j_loss_argmaxJ_minus_argmaxS.hi:.3f}}]: about {{H4.j.argmax_s.mean:.3f}} vs {{H4.j.argmax_j.mean:.3f}}.
   - Picking by S beats "pick the shortest" by {{H4.argmaxS_minus_argminL.mean:.3f}} J. Selection and evaluation used disjoint halves of the test snippets.
-  - With {{exploratory.h4_split_sensitivity.n_splits}} different random half-splits instead of the pre-registered one, all three criteria hold in {{exploratory.h4_split_sensitivity.n_supported}} (exploratory).
+  - Re-run on {{exploratory.h4_split_sensitivity.n_splits}} random half-splits (consecutive seeds from 0, including the pre-registered one), all three criteria hold in {{exploratory.h4_split_sensitivity.n_supported}} (exploratory).
 - 🔎 **The laziest baseline is competitive.**
   - `the token "X"` (median {{by_condition.top_token.tokens_median:.0f}} tokens) gets J = {{by_condition.top_token.j_mean:.3f}}. That is not distinguishable from gpt-3.5-turbo's {{by_condition.gpt35.j_mean:.3f}} (paired difference {{exploratory.top_token_vs_existing.minus_gpt35_J.mean:+.3f}} [{{exploratory.top_token_vs_existing.minus_gpt35_J.lo:+.3f}}, {{exploratory.top_token_vs_existing.minus_gpt35_J.hi:+.3f}}]) and below gpt-4o-mini's {{by_condition.gpt4omini.j_mean:.3f}} ({{exploratory.top_token_vs_existing.minus_gpt4omini_J.mean:+.3f}} [{{exploratory.top_token_vs_existing.minus_gpt4omini_J.lo:+.3f}}, {{exploratory.top_token_vs_existing.minus_gpt4omini_J.hi:+.3f}}]).
   - Under S it scores {{by_condition.top_token.s_mean:.3f}}, not distinguishable from gpt-3.5-turbo ({{by_condition.gpt35.s_mean:.3f}}; {{exploratory.top_token_vs_existing.minus_gpt35_S.mean:+.3f}} [{{exploratory.top_token_vs_existing.minus_gpt35_S.lo:+.3f}}, {{exploratory.top_token_vs_existing.minus_gpt35_S.hi:+.3f}}]) or from gpt-4o-mini ({{by_condition.gpt4omini.s_mean:.3f}}; {{exploratory.top_token_vs_existing.minus_gpt4omini_S.mean:+.3f}} [{{exploratory.top_token_vs_existing.minus_gpt4omini_S.lo:+.3f}}, {{exploratory.top_token_vs_existing.minus_gpt4omini_S.hi:+.3f}}]). These comparisons are post hoc.
@@ -97,7 +97,7 @@ The two re-scorings reuse the same 50 contexts, so they measure the scorer's own
 - Compared with the **"just pick the shortest" baseline**, it keeps much more accuracy ({{H4.argmaxS_minus_argminL.mean:.3f}} higher J). Brevity alone is not what it rewards.
 - The **random-explanation control** scores about zero under both J and S ({{by_condition.random.s_mean:.3f}}), so being short cannot rescue an unrelated explanation.
 - **Where it did not work as hoped:** at the pre-registered strength (H = 20) the score pushes, on average, all the way to ~2-word labels. In the post-hoc sweep, ~10-word explanations only draw level at H = 40 and have a higher but not significantly higher mean at H = 80, so a much weaker penalty is needed if descriptive explanations are wanted.
-- **Ablation:** setting H = ∞ removes the length factor and leaves max(J, 0), plain detection scoring clipped at 0, under which the longest (~40-word) explanations are best on average.
+- **Ablation:** setting H = ∞ removes the length factor and leaves max(J, 0), plain detection scoring clipped at 0, under which the longest (~40-word) explanations have the highest mean.
 
 ## Method in brief
 
@@ -109,7 +109,7 @@ The two re-scorings reuse the same 50 contexts, so they measure the scorer's own
   - 25 negatives are random 17-token OpenWebText windows on which the latent's activation is exactly 0.
 - **Checking the negatives:** we run GPT-2 small + the SAE through sae_lens. On {{data.negatives.reproduce_neuronpedia.n}} of Neuronpedia's top-activating windows, our activations reproduce the exported maxima with Pearson r = {{data.negatives.reproduce_neuronpedia.pearson_max:.3f}}.
 - **Scorer:** delphi `DetectionScorer`, 5 contexts per prompt (as in Paulo et al., App. D.1), temperature 0, Llama-3.1-70B-Instruct (OpenRouter, pinned to DeepInfra, which served all {{api_usage.score.calls}} main-run calls).
-- **Statistics:** 95% percentile bootstrap CIs ([Efron 1979](https://doi.org/10.1214/aos/1176344552); 10,000 resamples over latents, paired for differences), one-sided Wilcoxon signed-rank tests ([Wilcoxon 1945](https://doi.org/10.2307/3001968)), Holm correction ([Holm 1979](https://www.jstor.org/stable/4615733)).
+- **Statistics:** 95% percentile bootstrap CIs ([Efron 1979](https://doi.org/10.1214/aos/1176344552); percentile interval: [Efron and Tibshirani 1993](https://doi.org/10.1201/9780429246593), ch. 13; 10,000 resamples over latents, paired for differences), one-sided Wilcoxon signed-rank tests ([Wilcoxon 1945](https://doi.org/10.2307/3001968)), Holm correction ([Holm 1979](https://www.jstor.org/stable/4615733)).
   - H4 selects on one half of the test contexts and evaluates on the other (cross-fitting, as in [Chernozhukov et al. 2018](https://doi.org/10.1111/ectj.12097)), to avoid the winner's curse.
   - Parse failures affected {{sample_failure_rate:.3%}} of samples.
 

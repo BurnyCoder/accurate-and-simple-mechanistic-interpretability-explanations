@@ -60,6 +60,8 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 # fallbacks, failed calls are retried instead. DeepInfra serves Llama-3.1-70B in fp8 (OpenRouter
 # endpoints API, checked 2026-10-31:
 # https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints).
+# Re-checked 2026-11-22: the list no longer has DeepInfra (only Amazon Bedrock), so a new run
+# needs another provider (fallbacks are off); the stored predictions in results/ reproduce every number.
 MAIN_PROVIDER = {"order": ["DeepInfra"], "allow_fallbacks": False}
 N_EXAMPLES_SHOWN = 5  # Paulo et al. (App. D.1-D.2) show 5 shuffled examples per prompt; delphi's own default is 1
 SHUFFLE_SEED = 42  # delphi's Classifier default seed

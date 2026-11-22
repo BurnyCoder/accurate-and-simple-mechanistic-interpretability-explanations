@@ -54,7 +54,7 @@ uv run python run.py --phase reliability
 uv run python run.py --phase analyze --sample main
 ```
 
-`analyze` alone regenerates every table, figure and number in this README and the paper from the committed `results/` files, with no API calls. The processed data (`data/processed/`) and all results are committed, so the analysis reproduces without re-downloading or re-scoring. The API-usage totals and provider counts are read from the run logs, which are not in git; they are kept in `numbers.json`, and the logs are on [Hugging Face](https://huggingface.co/datasets/BurnyCoder/length-penalized-autointerp-gpt2-small/tree/main/logs).
+`analyze` alone regenerates every table, figure and number in this README and the paper from the committed `results/` files, with no API calls. `uv run python scripts/independent_check.py` recomputes the headline numbers (Table 1, H2, H3, H4) with a separate implementation and exits with an error if any differs. The processed data (`data/processed/`) and all results are committed, so the analysis reproduces without re-downloading or re-scoring. The API-usage totals and provider counts are read from the run logs, which are not in git; they are kept in `numbers.json`, and the logs are on [Hugging Face](https://huggingface.co/datasets/BurnyCoder/length-penalized-autointerp-gpt2-small/tree/main/logs).
 
 The paper PDF is built from the rendered `paper/paper.md` with pandoc and xelatex:
 
@@ -76,14 +76,14 @@ bash scripts/build_paper.sh
 | `PREREG.md` | Pre-registration (committed before any results) and its deviations. |
 | `templates/` | Sources of this README, `reports/` and `paper/`. Every number is a placeholder filled from `results/main/numbers.json`. |
 | `results/` | All scored explanations with per-context predictions. `pilot_discarded_old_negatives/` is the discarded first pilot. |
-| `scripts/` | `build_paper.sh` (PDF), `publish_hf.sh` (Hugging Face upload). |
+| `scripts/` | `build_paper.sh` (PDF), `publish_hf.sh` (Hugging Face upload), `independent_check.py` (re-implements the headline numbers without the package and compares them with `numbers.json`). |
 | `figures/`, `reports/`, `paper/`, `docs/` | Figures, experiment reports, paper (Markdown + PDF), GitHub Pages explorer + methodology. |
 
 ## Technologies
 
 - [delphi](https://github.com/EleutherAI/delphi), pinned to commit `4fea06e`: detection scorer, explainer, OpenRouter client, metrics.
 - [sae_lens](https://github.com/jbloomAus/SAELens) and [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens): GPT-2 small and the SAE.
-- [OpenRouter](https://openrouter.ai): Llama-3.1-70B-Instruct, pinned to the DeepInfra provider (fp8 per [OpenRouter's endpoint list](https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints), checked 2026-10-31), with Llama-3.3-70B as the alternative scorer.
+- [OpenRouter](https://openrouter.ai): Llama-3.1-70B-Instruct, pinned to the DeepInfra provider (fp8 per [OpenRouter's endpoint list](https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints), checked 2026-10-31; no longer listed on 2026-11-22, so new scoring runs need another provider), with Llama-3.3-70B as the alternative scorer.
 - [tiktoken](https://github.com/openai/tiktoken) (`o200k_base`) for lengths.
 - [Neuronpedia](https://www.neuronpedia.org) exports and [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext) for data.
 - pandas, SciPy, matplotlib for analysis; pytest for tests; uv for the environment.
