@@ -76,37 +76,50 @@ def crossfit_halves(df: pd.DataFrame, seed: int = config.SEED_ANALYSIS) -> dict[
 
 def _rankable(x: float) -> float:
     """A half where every prediction failed has J = NaN; rank it last instead of letting NaN
-    comparisons make max()/min() depend on candidate order."""
-    return -math.inf if math.isnan(x) else x
+    comparisons make max()/min() depend on candidate order. Equal J reached through different
+    confusion counts can differ in the last float bits; rounding to 12 decimals makes them compare
+    equal, so such ties go to the shorter explanation instead of to float noise."""
+    return -math.inf if math.isnan(x) else round(x, 12)
 
 
-def crossfit_selection(df: pd.DataFrame, halves: dict, half_life: float) -> pd.DataFrame:
+PRIMARY_KEY = {"argmax_j": "j", "argmax_s": "s", "argmin_l": "n_tokens"}  # what each rule ranks by first
+
+
+def crossfit_selection(df: pd.DataFrame, halves: dict, half_life: float, seed: int = config.SEED_ANALYSIS) -> pd.DataFrame:
     """Select a candidate per latent on one half, evaluate its J on the other, both ways.
-    Rules: argmax J, argmax S, argmin L. Ties go to the shorter explanation."""
+    Rules: argmax J, argmax S, argmin L. Ties go to the shorter explanation; candidates tied on
+    both score and length are broken uniformly at random (seeded), not by row order.
+    `tied` is the share of the two selections where the rule's primary key was tied."""
     out = []
     for latent, group in df.groupby("latent"):
-        rows = group.to_dict("records")
-        evaluations = {rule: [] for rule in ("argmax_j", "argmax_s", "argmin_l")}
+        # max()/min() return the first of equal keys. scores.jsonl rows are in API-completion
+        # order, so without this a rerun could change the picks: canonical order, then a seeded shuffle.
+        rows = sorted(group.to_dict("records"), key=lambda r: r["condition"])
+        random.Random(f"{seed}-{latent}-ties").shuffle(rows)
+        evaluations = {rule: [] for rule in PRIMARY_KEY}
         for select_ids, eval_ids in (halves[latent], halves[latent][::-1]):
             sel = [explanation_metrics(r, half_life, select_ids) | {"r": r} for r in rows]
             picks = {"argmax_j": max(sel, key=lambda m: (_rankable(m["j"]), -m["n_tokens"])),
                      "argmax_s": max(sel, key=lambda m: (_rankable(m["s"]), -m["n_tokens"])),
                      "argmin_l": min(sel, key=lambda m: (m["n_tokens"], -_rankable(m["j"])))}
             for rule, pick in picks.items():
+                key = PRIMARY_KEY[rule]
+                tied = sum(_rankable(m[key]) == _rankable(pick[key]) for m in sel) > 1
                 evaluated = explanation_metrics(pick["r"], half_life, eval_ids)
-                evaluations[rule].append((evaluated["j"], pick["n_tokens"], pick["r"]["condition"]))
+                evaluations[rule].append((evaluated["j"], pick["n_tokens"], pick["r"]["condition"], tied))
         for rule, ev in evaluations.items():
             out.append({"rule": rule, "latent": latent, "j": float(np.mean([e[0] for e in ev])),
-                        "n_tokens": float(np.mean([e[1] for e in ev])), "picked": [e[2] for e in ev]})
+                        "n_tokens": float(np.mean([e[1] for e in ev])), "picked": [e[2] for e in ev],
+                        "tied": float(np.mean([e[3] for e in ev]))})
     return pd.DataFrame(out)
 
 
 def h4(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS, seed: int = config.SEED_ANALYSIS) -> dict:
     """Selection: picking by S gives much shorter picks than by J, at little held-out J, and beats
     picking the shortest. `median_tokens` is the median over latents of each latent's mean pick
-    length over the two cross-fit directions."""
+    length over the two cross-fit directions. `seed` sets both the half-split and the exact-tie break."""
     cands = df[df.condition.isin(CANDIDATES)]
-    sel = crossfit_selection(cands, crossfit_halves(df, seed), half_life).rename(columns={"rule": "condition"})
+    sel = crossfit_selection(cands, crossfit_halves(df, seed), half_life, seed).rename(columns={"rule": "condition"})
     j, length = wide(sel, "j"), wide(sel, "n_tokens")
     loss = (j["argmax_j"] - j["argmax_s"]).dropna()
     out = {"j": {r: mean_ci(j[r].dropna()) for r in j.columns},
@@ -114,7 +127,9 @@ def h4(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS, seed: int =
            "j_loss_argmaxJ_minus_argmaxS": mean_ci(loss),
            "argmaxS_minus_argminL": paired(j, "argmax_s", "argmin_l"),
            "picked_counts": {r: pd.Series(sum(sel[sel.condition == r].picked, [])).value_counts().to_dict()
-                             for r in ("argmax_j", "argmax_s", "argmin_l")}}
+                             for r in PRIMARY_KEY},
+           # Share of selections whose best primary key (J, S or L) was shared by another candidate.
+           "tie_rate": {r: float(sel[sel.condition == r].tied.mean()) for r in PRIMARY_KEY}}
     ratio = out["median_tokens"]["argmax_s"] / out["median_tokens"]["argmax_j"]
     out["length_ratio_S_over_J"], out["length_reduction"] = ratio, 1 - ratio
     out["n_selections"] = 2 * int(sel.latent.nunique())  # two cross-fit directions per latent
@@ -125,8 +140,8 @@ def h4(df: pd.DataFrame, half_life: float = config.HALF_LIFE_TOKENS, seed: int =
 
 
 def h4_split_sensitivity(df: pd.DataFrame, n_splits: int = config.N_H4_SPLITS) -> dict:
-    """Exploratory: H4 re-run on `n_splits` random half-splits (seeds 0..n-1; seed 0 is the
-    pre-registered one): how much the result depends on which contexts land in the selection half."""
+    """Exploratory: H4 re-run with seeds 0..n-1 (seed 0 is the pre-registered split, so the n runs
+    include it): how much the result depends on which contexts land in the selection half."""
     runs = [h4(df, seed=seed) for seed in range(n_splits)]
 
     def spread(values: list[float]) -> dict:

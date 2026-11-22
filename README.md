@@ -18,7 +18,7 @@ In log space, `log S = log J − (ln 2 / H)·L`: a constant cost per token, a fi
 
 - Explanations and activating contexts come from [Neuronpedia's public export](https://neuronpedia-datasets.s3.us-east-1.amazonaws.com/index.html) for GPT-2 small (`6-res-jb`, [Bloom 2024](https://www.lesswrong.com/posts/f9EgfLSurAiqRJySD/open-source-sparse-autoencoders-for-all-residual-stream)).
 - Non-activating contexts are random OpenWebText windows on which the same SAE is verified to be 0.
-- delphi's scorer and explainer run unmodified, with Llama-3.1-70B-Instruct via OpenRouter, the explainer and scorer model of Paulo et al. (§3.2, App. F).
+- delphi's scorer runs unmodified, and its explainer prompt gets one appended length sentence, with Llama-3.1-70B-Instruct via OpenRouter, the explainer and scorer model of Paulo et al. (§3.2, App. F).
 
 Everything was pre-registered in [PREREG.md](PREREG.md) before any results existed. **[Paper (PDF)](paper/paper.pdf)** · [Reports](reports/) · [Interactive explorer](https://burnycoder.github.io/accurate-and-simple-mechanistic-interpretability-explanations/) · [Methodology](docs/methodology.md) · [Scored data on Hugging Face](https://huggingface.co/datasets/BurnyCoder/length-penalized-autointerp-gpt2-small) ([collection](https://huggingface.co/collections/BurnyCoder/accurate-and-simple-interpretability-explanations-6ae2bbf0e413a206073deb4e))
 
@@ -26,8 +26,8 @@ Everything was pre-registered in [PREREG.md](PREREG.md) before any results exist
 
 24576 latents in the SAE; 200 sampled at random; 2002 explanations scored; 21220 LLM calls in the main run (US$6.78), plus 10040 for the reliability re-scoring (US$2.03).
 
-- ✅ **The base scorer is valid.**
-  - Random explanations (another latent's explanation) score J = -0.022 [-0.038, -0.006], about chance.
+- ✅ **The base scorer passes the validity check (H1).**
+  - Random explanations (another latent's explanation) score J = -0.022 [-0.038, -0.006], about chance (the CI lies just below 0, within the pre-registered ±0.05).
   - Neuronpedia's gpt-4o-mini explanations score J = 0.499 [0.453, 0.547], and its gpt-3.5-turbo explanations 0.444.
 - ✅ **Longer explanations are more accurate, with diminishing returns.**
   - When Llama-3.1-70B is asked for ~2 vs ~40 words, J goes from 0.464 to 0.577 (+0.113 [0.079, 0.147]).
@@ -39,9 +39,9 @@ Everything was pre-registered in [PREREG.md](PREREG.md) before any results exist
   - This is about the mean. Per latent, the shortest budget has the highest S for 99 of 200 latents and an intermediate one for 100, though single-explanation scores are noisy.
 - ✅ **The length factor works as a selection rule.**
   - Among 8 candidate explanations per latent, picking by S instead of plain detection J gives explanations 39% shorter (median 5.5 vs 9.0 tokens).
-  - The held-out J loss is only 0.031 [0.018, 0.046]: about 0.613 vs 0.644.
-  - Picking by S beats "pick the shortest" by 0.146 J. Selection and evaluation used disjoint halves of the test snippets.
-  - With 20 different random half-splits instead of the pre-registered one, all three criteria hold in 20 (exploratory).
+  - The held-out J loss is only 0.030 [0.017, 0.045]: about 0.612 vs 0.642.
+  - Picking by S beats "pick the shortest" by 0.145 J. Selection and evaluation used disjoint halves of the test snippets.
+  - Re-run on 20 random half-splits (consecutive seeds from 0, including the pre-registered one), all three criteria hold in 20 (exploratory).
 - 🔎 **The laziest baseline is competitive.**
   - `the token "X"` (median 5 tokens) gets J = 0.430. That is not distinguishable from gpt-3.5-turbo's 0.444 (paired difference -0.015 [-0.064, +0.036]) and below gpt-4o-mini's 0.499 (-0.070 [-0.110, -0.028]).
   - Under S it scores 0.365, not distinguishable from gpt-3.5-turbo (0.341; +0.023 [-0.016, +0.064]) or from gpt-4o-mini (0.374; -0.009 [-0.041, +0.023]). These comparisons are post hoc.
@@ -106,9 +106,9 @@ H is an exchange rate between accuracy and brevity, not a measured quantity. For
 
 | selection rule | held-out mean J [95% CI] | median tokens |
 |---|---:|---:|
-| pick highest J (plain detection) | 0.644 [0.605, 0.682] | 9.0 |
-| pick highest S (this method) | 0.613 [0.574, 0.649] | 5.5 |
-| pick shortest | 0.467 [0.425, 0.509] | 2.0 |
+| pick highest J (plain detection) | 0.642 [0.604, 0.679] | 9.0 |
+| pick highest S (this method) | 0.612 [0.574, 0.648] | 5.5 |
+| pick shortest | 0.466 [0.425, 0.508] | 2.0 |
 
 ![Selection rules](figures/fig5_selection.png)
 
@@ -126,11 +126,11 @@ The two re-scorings reuse the same 50 contexts, so they measure the scorer's own
 
 ### In plain words
 
-- Compared with **plain detection scoring**, the new score prefers explanations that are 39% shorter and gives up only 0.031 accuracy (J) when picking the best explanation per feature. That is the intended trade.
-- Compared with the **"just pick the shortest" baseline**, it keeps much more accuracy (0.146 higher J). Brevity alone is not what it rewards.
+- Compared with **plain detection scoring**, the new score prefers explanations that are 39% shorter and gives up only 0.030 accuracy (J) when picking the best explanation per feature. That is the intended trade.
+- Compared with the **"just pick the shortest" baseline**, it keeps much more accuracy (0.145 higher J). Brevity alone is not what it rewards.
 - The **random-explanation control** scores about zero under both J and S (0.021), so being short cannot rescue an unrelated explanation.
 - **Where it did not work as hoped:** at the pre-registered strength (H = 20) the score pushes, on average, all the way to ~2-word labels. In the post-hoc sweep, ~10-word explanations only draw level at H = 40 and have a higher but not significantly higher mean at H = 80, so a much weaker penalty is needed if descriptive explanations are wanted.
-- **Ablation:** setting H = ∞ removes the length factor and leaves max(J, 0), plain detection scoring clipped at 0, under which the longest (~40-word) explanations are best on average.
+- **Ablation:** setting H = ∞ removes the length factor and leaves max(J, 0), plain detection scoring clipped at 0, under which the longest (~40-word) explanations have the highest mean.
 
 ## Method in brief
 
@@ -142,7 +142,7 @@ The two re-scorings reuse the same 50 contexts, so they measure the scorer's own
   - 25 negatives are random 17-token OpenWebText windows on which the latent's activation is exactly 0.
 - **Checking the negatives:** we run GPT-2 small + the SAE through sae_lens. On 152 of Neuronpedia's top-activating windows, our activations reproduce the exported maxima with Pearson r = 0.988.
 - **Scorer:** delphi `DetectionScorer`, 5 contexts per prompt (as in Paulo et al., App. D.1), temperature 0, Llama-3.1-70B-Instruct (OpenRouter, pinned to DeepInfra, which served all 21220 main-run calls).
-- **Statistics:** 95% percentile bootstrap CIs ([Efron 1979](https://doi.org/10.1214/aos/1176344552); 10,000 resamples over latents, paired for differences), one-sided Wilcoxon signed-rank tests ([Wilcoxon 1945](https://doi.org/10.2307/3001968)), Holm correction ([Holm 1979](https://www.jstor.org/stable/4615733)).
+- **Statistics:** 95% percentile bootstrap CIs ([Efron 1979](https://doi.org/10.1214/aos/1176344552); percentile interval: [Efron and Tibshirani 1993](https://doi.org/10.1201/9780429246593), ch. 13; 10,000 resamples over latents, paired for differences), one-sided Wilcoxon signed-rank tests ([Wilcoxon 1945](https://doi.org/10.2307/3001968)), Holm correction ([Holm 1979](https://www.jstor.org/stable/4615733)).
   - H4 selects on one half of the test contexts and evaluates on the other (cross-fitting, as in [Chernozhukov et al. 2018](https://doi.org/10.1111/ectj.12097)), to avoid the winner's curse.
   - Parse failures affected 0.035% of samples.
 
@@ -204,7 +204,7 @@ uv run python run.py --phase reliability
 uv run python run.py --phase analyze --sample main
 ```
 
-`analyze` alone regenerates every table, figure and number in this README and the paper from the committed `results/` files, with no API calls. The processed data (`data/processed/`) and all results are committed, so the analysis reproduces without re-downloading or re-scoring. The API-usage totals and provider counts are read from the run logs, which are not in git; they are kept in `numbers.json`, and the logs are on [Hugging Face](https://huggingface.co/datasets/BurnyCoder/length-penalized-autointerp-gpt2-small/tree/main/logs).
+`analyze` alone regenerates every table, figure and number in this README and the paper from the committed `results/` files, with no API calls. `uv run python scripts/independent_check.py` recomputes the headline numbers (Table 1, H2, H3, H4) with a separate implementation and exits with an error if any differs. The processed data (`data/processed/`) and all results are committed, so the analysis reproduces without re-downloading or re-scoring. The API-usage totals and provider counts are read from the run logs, which are not in git; they are kept in `numbers.json`, and the logs are on [Hugging Face](https://huggingface.co/datasets/BurnyCoder/length-penalized-autointerp-gpt2-small/tree/main/logs).
 
 The paper PDF is built from the rendered `paper/paper.md` with pandoc and xelatex:
 
@@ -226,14 +226,14 @@ bash scripts/build_paper.sh
 | `PREREG.md` | Pre-registration (committed before any results) and its deviations. |
 | `templates/` | Sources of this README, `reports/` and `paper/`. Every number is a placeholder filled from `results/main/numbers.json`. |
 | `results/` | All scored explanations with per-context predictions. `pilot_discarded_old_negatives/` is the discarded first pilot. |
-| `scripts/` | `build_paper.sh` (PDF), `publish_hf.sh` (Hugging Face upload). |
+| `scripts/` | `build_paper.sh` (PDF), `publish_hf.sh` (Hugging Face upload), `independent_check.py` (re-implements the headline numbers without the package and compares them with `numbers.json`). |
 | `figures/`, `reports/`, `paper/`, `docs/` | Figures, experiment reports, paper (Markdown + PDF), GitHub Pages explorer + methodology. |
 
 ## Technologies
 
 - [delphi](https://github.com/EleutherAI/delphi), pinned to commit `4fea06e`: detection scorer, explainer, OpenRouter client, metrics.
 - [sae_lens](https://github.com/jbloomAus/SAELens) and [TransformerLens](https://github.com/TransformerLensOrg/TransformerLens): GPT-2 small and the SAE.
-- [OpenRouter](https://openrouter.ai): Llama-3.1-70B-Instruct, pinned to the DeepInfra provider (fp8 per [OpenRouter's endpoint list](https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints), checked 2026-10-31), with Llama-3.3-70B as the alternative scorer.
+- [OpenRouter](https://openrouter.ai): Llama-3.1-70B-Instruct, pinned to the DeepInfra provider (fp8 per [OpenRouter's endpoint list](https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints), checked 2026-10-31; no longer listed on 2026-11-22, so new scoring runs need another provider), with Llama-3.3-70B as the alternative scorer.
 - [tiktoken](https://github.com/openai/tiktoken) (`o200k_base`) for lengths.
 - [Neuronpedia](https://www.neuronpedia.org) exports and [OpenWebText](https://huggingface.co/datasets/Skylion007/openwebtext) for data.
 - pandas, SciPy, matplotlib for analysis; pytest for tests; uv for the environment.

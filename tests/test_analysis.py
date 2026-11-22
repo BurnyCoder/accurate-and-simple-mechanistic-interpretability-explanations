@@ -85,6 +85,45 @@ def test_crossfit_ties_go_to_the_shorter_explanation():
     assert out.loc["argmax_j", "n_tokens"] == 1
 
 
+def test_crossfit_j_ties_hidden_by_float_noise_still_go_to_the_shorter_explanation():
+    # On half A (12 + 12 contexts) "long" has TPR 6/12, FPR 2/12 and "short" TPR 4/12, FPR 0:
+    # both J = 1/3, but delphi's 2*BA - 1 gives 0.3333333333333335 vs 0.33333333333333326.
+    a_ids = [f"p{i}" for i in range(12)] + [f"n{i}" for i in range(12)]
+    b_ids = [f"p{i}" for i in range(12, 24)] + [f"n{i}" for i in range(12, 24)]
+
+    def samples(tp: int, fp: int) -> list[dict]:
+        a = [{"id": f"p{i}", "activating": True, "prediction": i < tp} for i in range(12)]
+        a += [{"id": f"n{i}", "activating": False, "prediction": i < fp} for i in range(12)]
+        return a + [{"id": i, "activating": i.startswith("p"), "prediction": i.startswith("p")} for i in b_ids]
+
+    rows = pd.DataFrame([
+        {"latent": 1, "condition": "long", "explanation": "a b c d e f", "samples": samples(tp=6, fp=2)},
+        {"latent": 1, "condition": "short", "explanation": "a", "samples": samples(tp=4, fp=0)},
+    ])
+    out = crossfit_selection(rows, {1: (set(a_ids), set(b_ids))}, half_life=20).set_index("rule")
+    assert out.loc["argmax_j", "n_tokens"] == 1
+
+
+def test_crossfit_exact_ties_do_not_depend_on_row_order():
+    # "x" and "y" are both 1 token and perfect on half A, so selecting on A is an exact tie in
+    # J, S and length. On half B "x" stays perfect and "y" is always wrong, so which one the tie
+    # picks changes the held-out J. scores.jsonl rows are in API-completion order, so the pick
+    # must come from the seeded tie-break, not from the order of the rows.
+    perfect = _samples(tp=4, fn=0, tn=4, fp=0)
+    wrong_on_b = [s | {"prediction": not s["activating"]} if s["id"] in {"p2", "p3", "n2", "n3"} else s
+                  for s in perfect]
+    rows = pd.DataFrame([
+        {"latent": 1, "condition": "x", "explanation": "a", "samples": perfect},
+        {"latent": 1, "condition": "y", "explanation": "b", "samples": wrong_on_b},
+    ])
+    halves = {1: ({"p0", "p1", "n0", "n1"}, {"p2", "p3", "n2", "n3"})}
+    forward = crossfit_selection(rows, halves, half_life=20).set_index("rule")
+    backward = crossfit_selection(rows.iloc[::-1], halves, half_life=20).set_index("rule")
+    assert forward.j.tolist() == backward.j.tolist() and forward.picked.tolist() == backward.picked.tolist()
+    # The A-side selection is tied for every rule, the B-side one (x perfect, y J = -1) is not.
+    assert forward.loc["argmax_j", "tied"] == 0.5 and forward.loc["argmax_s", "tied"] == 0.5
+
+
 def test_crossfit_halves_are_stratified_disjoint_and_follow_the_seed():
     df = pd.DataFrame([{"latent": 1, "condition": "a", "samples": _samples(tp=5, fn=5, tn=5, fp=5)}])
     a, b = crossfit_halves(df, seed=0)[1]

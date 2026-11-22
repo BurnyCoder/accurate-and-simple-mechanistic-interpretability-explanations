@@ -48,7 +48,7 @@ The project's new score multiplies the above-chance detection score by a length 
 
 - Plain detection (J) rewards longer explanations: when Llama-3.1-70B is asked for ~2 to ~40 words, mean J goes from 0.464 to 0.577.
 - At H = 20, mean S is highest for the shortest explanations, so the pre-registered interior optimum was falsified.
-- Choosing among 8 candidate explanations per latent by S instead of J makes the picks 39% shorter (median tokens), for 0.031 held-out J.
+- Choosing among 8 candidate explanations per latent by S instead of J makes the picks 39% shorter (median tokens), for 0.030 held-out J.
 
 See the repository README and paper for the full write-up.
 

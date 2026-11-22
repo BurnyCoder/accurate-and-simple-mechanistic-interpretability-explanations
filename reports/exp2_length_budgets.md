@@ -26,7 +26,7 @@ The median length rises with every budget step, so the explainer followed the bu
 |---|---:|---:|---:|---:|---:|---:|
 | mean J | 0.464 | 0.493 | 0.548 | 0.552 | 0.577 | 0.563 |
 
-- J(~40) − J(~2) = +0.113 [+0.079, +0.147], Wilcoxon p = 7.1e-09.
+- J(~40) − J(~2) = +0.113 [+0.079, +0.147], Wilcoxon p = 9.0e-09.
 - The J gain per nominal word from 2→10 words, minus the gain per word from 10→40, is +0.0095 [+0.0056, +0.0136] > 0. That is diminishing returns.
 - Across all 2002 scored explanations, J and length are only weakly related (Spearman 0.13).
 
@@ -47,7 +47,7 @@ The median length rises with every budget step, so the explainer followed the bu
 
 Every intermediate budget beats ~40 words, but none beats ~2 words. On average, the accuracy gained by writing more is smaller than the length cost at H = 20.
 
-From ~2 to ~10 words, mean J rises by a factor of 1.18. Over the same stretch, the length factor at the median lengths (2 → 11 tokens) falls by a factor of 0.73. The pre-registered prediction is therefore falsified.
+From ~2 to ~10 words, mean J rises by a factor of 1.18. Over the same stretch, the length factor at the median lengths (2 → 11 tokens) falls by a factor of 0.73. This is why the pre-registered prediction fails.
 
 ![J and S vs length](../figures/fig3_budget_curves.png)
 
@@ -85,22 +85,22 @@ These comparisons were chosen after seeing the data, and the budget tested at ea
 
 | selection rule | held-out mean J [95% CI] | median tokens |
 |---|---:|---:|
-| pick highest J (plain detection) | 0.644 [0.605, 0.682] | 9.0 |
-| pick highest S (this method) | 0.613 [0.574, 0.649] | 5.5 |
-| pick shortest | 0.467 [0.425, 0.509] | 2.0 |
+| pick highest J (plain detection) | 0.642 [0.604, 0.679] | 9.0 |
+| pick highest S (this method) | 0.612 [0.574, 0.648] | 5.5 |
+| pick shortest | 0.466 [0.425, 0.508] | 2.0 |
 
 - **Length:** argmax-S picks are 39% shorter than argmax-J picks (criterion: ≥ 20%).
-- **Accuracy loss:** J drops by 0.031 [0.018, 0.046] (criterion: ≤ 0.05).
-- **Versus shortest:** argmax-S beats argmin-L by 0.146 [0.115, 0.179] J (criterion: CI > 0).
+- **Accuracy loss:** J drops by 0.030 [0.017, 0.045] (criterion: ≤ 0.05).
+- **Versus shortest:** argmax-S beats argmin-L by 0.145 [0.114, 0.179] J (criterion: CI > 0).
 
-All three pre-registered criteria hold. They also hold in 20 of 20 other random half-splits (exploratory): J loss 0.021–0.039, length reduction 25%–42% (mean 33%), margin over the shortest 0.142–0.154.
+All three pre-registered criteria hold. They hold in 20 of 20 random half-splits (consecutive seeds from 0, including the pre-registered one; exploratory): J loss 0.022–0.038, length reduction 25%–42% (mean 32%), margin over the shortest 0.142–0.154.
 
 Which candidates got picked (counts over 400 selections: 2 halves × 200 latents):
 
-- argmax J: ~2 words 80, ~5 51, ~10 43, ~20 32, ~40 28, unconstrained 29, gpt-3.5 63, gpt-4o-mini 74.
-- argmax S: ~2 words 145, ~5 78, ~10 27, ~20 8, ~40 2, unconstrained 1, gpt-3.5 67, gpt-4o-mini 72.
+- argmax J: ~2 words 89, ~5 53, ~10 44, ~20 34, ~40 26, unconstrained 25, gpt-3.5 58, gpt-4o-mini 71.
+- argmax S: ~2 words 151, ~5 80, ~10 28, ~20 8, ~40 2, unconstrained 1, gpt-3.5 60, gpt-4o-mini 70.
 
-Plain J often picks short explanations too, likely because ties are broken toward the shorter one and J is noisy on 25 contexts (we did not measure how often ties occur). Even so, S moves picks away from the long budgets almost completely.
+Plain J often picks short explanations too. On 25 contexts J takes few distinct values: the best J is shared by at least two candidates in 53% of argmax-J selections (best S: 5% of argmax-S selections), and ties go to the shorter explanation. Candidates tied in both score and length are broken uniformly at random with a fixed seed. Even so, S moves picks away from the long budgets almost completely.
 
 ![Selection](../figures/fig5_selection.png)
 
