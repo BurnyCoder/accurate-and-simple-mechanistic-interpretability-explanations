@@ -14,7 +14,7 @@
 | 1 | Existing explanations | H1: is the scorer valid? How do sources compare under J and S? | H1 True: random J = -0.022; gpt-4o-mini 0.499, gpt-3.5 0.444. Under S, the top-token baseline is not distinguishable from either Neuronpedia source (post hoc). | [exp1](exp1_existing_explanations.md) |
 | 2a | Length budgets | H2: does J rise with length, with diminishing returns? | True: J 0.464 (~2 words) → 0.577 (~40 words). | [exp2](exp2_length_budgets.md) |
 | 2b | Length budgets | **H3 (primary):** is there an interior S optimum at H = 20? | **Falsified** (False): S decreases monotonically. Exploratory: ~10 words ties ~2 words at H = 40; at H = 80 its higher mean is not significant (one-sided p = 0.0505, post hoc). | [exp2](exp2_length_budgets.md) |
-| 2c | Selection | H4: does choosing by S give short and accurate picks? | True: 39% shorter, −0.031 J; +0.146 J over the shortest. | [exp2](exp2_length_budgets.md) |
+| 2c | Selection | H4: does choosing by S give short and accurate picks? | True: 39% shorter, −0.030 J; +0.145 J over the shortest. | [exp2](exp2_length_budgets.md) |
 | 3 | Reliability | Do scores reproduce under a new shuffle, a different scorer, and different contexts? | Same contexts: within-latent Spearman J 0.91 (retest), 0.92 (alternative scorer). Disjoint context halves: 0.66, so single scores are noisy and the claims rest on means. | [reliability](reliability.md) |
 
 All experiments in one file: [all_experiments.md](all_experiments.md).
@@ -47,7 +47,7 @@ No network was trained in this project. These are the models it uses.
 | GPT-2 small ([Radford et al. 2019](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)) | Subject model whose activations are explained | 12-layer decoder-only transformer, d_model 768, ~124M parameters (117M in Radford et al., Table 2) | Next-token prediction | WebText | Run with TransformerLens to compute verified negatives |
 | SAE `gpt2-small-res-jb`, layer 6 ([Bloom 2024](https://www.lesswrong.com/posts/f9EgfLSurAiqRJySD/open-source-sparse-autoencoders-for-all-residual-stream)) | Produces the latents being explained | 768 → 24,576 latents → 768 (expansion 32); ReLU encoder (sae_lens `standard` architecture) | Reconstruction MSE + L1 sparsity (coefficient 8e-5), 300M tokens ([cfg.json](https://huggingface.co/jbloom/GPT2-Small-SAEs-Reformatted/blob/main/blocks.6.hook_resid_pre/cfg.json)) | OpenWebText, 128-token contexts | Loaded via sae_lens; reproduces Neuronpedia activations (r = 0.988) |
 | gpt-3.5-turbo, gpt-4o-mini (OpenAI) | Neuronpedia's explainers (existing explanations) | Proprietary | Proprietary | — | OpenAI token–activation-pair explainer method |
-| Llama-3.1-70B-Instruct ([Llama Team 2024](https://arxiv.org/abs/2407.21783)) | Detection scorer and Exp 2 explainer | 70B decoder-only transformer | Pretraining + instruction tuning | — | Via OpenRouter, pinned to DeepInfra (fp8 per [OpenRouter](https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints), checked 2026-10-31), temperature 0; the explainer and scorer model of Paulo et al. (their App. F states 4-bit quantization for its experiments) |
+| Llama-3.1-70B-Instruct ([Llama Team 2024](https://arxiv.org/abs/2407.21783)) | Detection scorer and Exp 2 explainer | 70B decoder-only transformer | Pretraining + instruction tuning | — | Via OpenRouter, pinned to DeepInfra (fp8 per [OpenRouter](https://openrouter.ai/api/v1/models/meta-llama/llama-3.1-70b-instruct/endpoints), checked 2026-10-31; no longer listed on 2026-11-22), temperature 0; the explainer and scorer model of Paulo et al. (their App. F states 4-bit quantization for its experiments) |
 | Llama-3.3-70B-Instruct | Alternative scorer (reliability) | 70B decoder-only transformer | Pretraining + instruction tuning | — | OpenRouter default routing, so several providers served it ([reliability](reliability.md)) |
 
 ## Key terms
@@ -66,7 +66,7 @@ No network was trained in this project. These are the models it uses.
 | Random control | Another latent's explanation. | A wrong label; it should score ~0. |
 | Verified negatives | Random OpenWebText snippets on which the latent's activation is exactly 0 (checked by running GPT-2 small + the SAE). | Snippets where the detector is known to be off. |
 | Cross-fitting | Choose an explanation using half of the test snippets, and measure it on the other half, then swap ([Chernozhukov et al. 2018](https://doi.org/10.1111/ectj.12097)). | Don't grade yourself on the questions you used to choose your answer. |
-| Bootstrap CI | 95% percentile interval from resampling latents 10,000 times ([Efron 1979](https://doi.org/10.1214/aos/1176344552)). | The range the average would plausibly fall in with a different set of latents. |
+| Bootstrap CI | 95% percentile interval from resampling latents 10,000 times ([Efron 1979](https://doi.org/10.1214/aos/1176344552); [Efron and Tibshirani 1993](https://doi.org/10.1201/9780429246593), ch. 13). | The range the average would plausibly fall in with a different set of latents. |
 | Wilcoxon / Holm | Paired signed-rank test ([Wilcoxon 1945](https://doi.org/10.2307/3001968)); Holm corrects p-values for running several tests ([Holm 1979](https://www.jstor.org/stable/4615733)). | Is the difference real, after accounting for running many tests? |
 
 

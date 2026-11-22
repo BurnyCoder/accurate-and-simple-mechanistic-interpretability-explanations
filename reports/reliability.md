@@ -9,7 +9,7 @@
 - A random 50-latent subset of the main sample (seed 2), with all Exp 1 and Exp 2 conditions. The explanations and test contexts are identical to the main run, so the two re-scorings below measure the scorer's own noise only.
 - **Retest:** same scorer (Llama-3.1-70B, DeepInfra), delphi shuffle seed 43 instead of 42. This changes which 5 contexts share a prompt and their order.
 - **Alternative scorer:** Llama-3.3-70B-Instruct (OpenRouter default routing), seed 42. Unlike the pinned main scorer, its calls were served by several providers, which may differ in quantization (table below).
-- **Split halves (no new calls):** every non-random explanation of all 200 main latents, scored on the two class-stratified halves of its 50 contexts used for H4's cross-fitting (seed 0). The halves share no contexts, so this adds the noise from which contexts were drawn. Each half has 25 contexts, so it is a lower bound on the agreement at 50.
+- **Split halves (no new calls):** every non-random explanation of all 200 main latents, scored on the two class-stratified halves of its 50 contexts used for H4's cross-fitting (seed 0). The halves share no contexts, so this adds the noise from which contexts were drawn. Each half has 25 contexts, so two independent 50-context scorings would likely agree more. The two halves were, however, scored in shared 5-context prompts, which may correlate their answers and push the agreement the other way.
 - Cost of both re-scorings: US$2.03 for 10040 calls.
 
 Providers that served each run, counted from the logs:

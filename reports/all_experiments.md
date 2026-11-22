@@ -28,7 +28,7 @@ Reading the logged scorer prompts showed the same sentence again and again among
 
 Detection scoring measures precision only through its negatives. With nearly duplicate negatives, broad explanations would be penalized too little, and broad explanations are the very ones a length factor interacts with.
 
-**Fix (PREREG deviation 2, recorded before any main results, after the first pilot's results; see below).** We switched to verified random negatives, as in delphi's default (`non_activating_source = "random"`) and in Paulo et al. (App. D.4):
+**Fix (PREREG deviation 2, recorded before any main results, after the first pilot's results; see below).** We switched to verified random negatives, as in delphi's default (`non_activating_source = "random"`) and Paulo et al.'s non-activating contexts (§4.2; App. D.5 discusses the limits of random negatives):
 
 1. GPT-2 small and the *same* SAE (sae_lens `gpt2-small-res-jb`, `blocks.6.hook_resid_pre`) run on 4000 random windows from Skylion007/openwebtext. Each window is one per document, 64 tokens of context, of which the last 17 are shown.
 2. A window counts as a negative for a latent if the latent's activation is exactly 0 at all 17 displayed tokens. Each latent had at least 2674 such windows (median 3966), and 25 are sampled per latent.
@@ -49,7 +49,7 @@ With verified negatives, the final pilot's random control scored J = -0.024, abo
 
 The switch was prompted by the duplicate sentences in the logged prompts, and it matches delphi's default and Paulo et al.'s random negatives. A random control above chance means the scorer separates positives from negatives without a relevant explanation, which points to the negatives. Still, a reader should know that H1 and H4 changed from failing to holding on these 10 latents, and that the main run started only after the switch: the deviation's commit (`393e156`) predates the earliest `time` field in `results/main/scores.jsonl`.
 
-**Remaining difference between positives and negatives.** Neuronpedia's windows can cross document boundaries, so 8.3% of the main run's test positives contain `<|endoftext|>`. Our negatives are single windows inside one document and contain it 0% of the time. The scorer does not use it as a cue: given the random control's unrelated explanations, it says "yes" to 13.5% of those positives and to 12.4% of the others. Re-running H1–H4 without them gives the same verdicts (paper §4.5).
+**Remaining difference between positives and negatives.** Neuronpedia's windows can cross document boundaries, so 8.3% of the main run's test positives contain `<|endoftext|>`. Our negatives are single windows inside one document and contain it 0% of the time. We see no sign that the scorer uses it as a cue: given the random control's unrelated explanations, it says "yes" to 13.5% of those positives and to 12.4% of the others. Re-running H1–H4 without them gives the same verdicts (paper §4.5).
 
 ## Other issues fixed during setup (learnings)
 
@@ -109,7 +109,7 @@ The switch was prompted by the duplicate sentences in the logged prompts, and it
 
 **Exploratory: gpt-4o-mini vs gpt-3.5-turbo.**
 
-- gpt-4o-mini's explanations are nominally more accurate, by J = +0.055 [+0.014, +0.096]. The bootstrap CI excludes 0, but the two-sided Wilcoxon test does not reach 0.05 (p = 0.065).
+- gpt-4o-mini's explanations are nominally more accurate, by J = +0.055 [+0.014, +0.096]. The bootstrap CI excludes 0, but the two-sided Wilcoxon test does not reach 0.05 (p = 0.059).
 - Both have the same median length (8 vs 8 tokens), and the length factor does not reverse the order: ΔS = +0.033 [+0.004, +0.062] (two-sided Wilcoxon p = 0.175).
 - The pre-registered exploratory question was whether they swap rank. They don't.
 
@@ -160,7 +160,7 @@ The median length rises with every budget step, so the explainer followed the bu
 |---|---:|---:|---:|---:|---:|---:|
 | mean J | 0.464 | 0.493 | 0.548 | 0.552 | 0.577 | 0.563 |
 
-- J(~40) − J(~2) = +0.113 [+0.079, +0.147], Wilcoxon p = 7.1e-09.
+- J(~40) − J(~2) = +0.113 [+0.079, +0.147], Wilcoxon p = 9.0e-09.
 - The J gain per nominal word from 2→10 words, minus the gain per word from 10→40, is +0.0095 [+0.0056, +0.0136] > 0. That is diminishing returns.
 - Across all 2002 scored explanations, J and length are only weakly related (Spearman 0.13).
 
@@ -181,7 +181,7 @@ The median length rises with every budget step, so the explainer followed the bu
 
 Every intermediate budget beats ~40 words, but none beats ~2 words. On average, the accuracy gained by writing more is smaller than the length cost at H = 20.
 
-From ~2 to ~10 words, mean J rises by a factor of 1.18. Over the same stretch, the length factor at the median lengths (2 → 11 tokens) falls by a factor of 0.73. The pre-registered prediction is therefore falsified.
+From ~2 to ~10 words, mean J rises by a factor of 1.18. Over the same stretch, the length factor at the median lengths (2 → 11 tokens) falls by a factor of 0.73. This is why the pre-registered prediction fails.
 
 ![J and S vs length](../figures/fig3_budget_curves.png)
 
@@ -219,22 +219,22 @@ These comparisons were chosen after seeing the data, and the budget tested at ea
 
 | selection rule | held-out mean J [95% CI] | median tokens |
 |---|---:|---:|
-| pick highest J (plain detection) | 0.644 [0.605, 0.682] | 9.0 |
-| pick highest S (this method) | 0.613 [0.574, 0.649] | 5.5 |
-| pick shortest | 0.467 [0.425, 0.509] | 2.0 |
+| pick highest J (plain detection) | 0.642 [0.604, 0.679] | 9.0 |
+| pick highest S (this method) | 0.612 [0.574, 0.648] | 5.5 |
+| pick shortest | 0.466 [0.425, 0.508] | 2.0 |
 
 - **Length:** argmax-S picks are 39% shorter than argmax-J picks (criterion: ≥ 20%).
-- **Accuracy loss:** J drops by 0.031 [0.018, 0.046] (criterion: ≤ 0.05).
-- **Versus shortest:** argmax-S beats argmin-L by 0.146 [0.115, 0.179] J (criterion: CI > 0).
+- **Accuracy loss:** J drops by 0.030 [0.017, 0.045] (criterion: ≤ 0.05).
+- **Versus shortest:** argmax-S beats argmin-L by 0.145 [0.114, 0.179] J (criterion: CI > 0).
 
-All three pre-registered criteria hold. They also hold in 20 of 20 other random half-splits (exploratory): J loss 0.021–0.039, length reduction 25%–42% (mean 33%), margin over the shortest 0.142–0.154.
+All three pre-registered criteria hold. They hold in 20 of 20 random half-splits (consecutive seeds from 0, including the pre-registered one; exploratory): J loss 0.022–0.038, length reduction 25%–42% (mean 32%), margin over the shortest 0.142–0.154.
 
 Which candidates got picked (counts over 400 selections: 2 halves × 200 latents):
 
-- argmax J: ~2 words 80, ~5 51, ~10 43, ~20 32, ~40 28, unconstrained 29, gpt-3.5 63, gpt-4o-mini 74.
-- argmax S: ~2 words 145, ~5 78, ~10 27, ~20 8, ~40 2, unconstrained 1, gpt-3.5 67, gpt-4o-mini 72.
+- argmax J: ~2 words 89, ~5 53, ~10 44, ~20 34, ~40 26, unconstrained 25, gpt-3.5 58, gpt-4o-mini 71.
+- argmax S: ~2 words 151, ~5 80, ~10 28, ~20 8, ~40 2, unconstrained 1, gpt-3.5 60, gpt-4o-mini 70.
 
-Plain J often picks short explanations too, likely because ties are broken toward the shorter one and J is noisy on 25 contexts (we did not measure how often ties occur). Even so, S moves picks away from the long budgets almost completely.
+Plain J often picks short explanations too. On 25 contexts J takes few distinct values: the best J is shared by at least two candidates in 53% of argmax-J selections (best S: 5% of argmax-S selections), and ties go to the shorter explanation. Candidates tied in both score and length are broken uniformly at random with a fixed seed. Even so, S moves picks away from the long budgets almost completely.
 
 ![Selection](../figures/fig5_selection.png)
 
@@ -258,7 +258,7 @@ Plain J often picks short explanations too, likely because ties are broken towar
 - A random 50-latent subset of the main sample (seed 2), with all Exp 1 and Exp 2 conditions. The explanations and test contexts are identical to the main run, so the two re-scorings below measure the scorer's own noise only.
 - **Retest:** same scorer (Llama-3.1-70B, DeepInfra), delphi shuffle seed 43 instead of 42. This changes which 5 contexts share a prompt and their order.
 - **Alternative scorer:** Llama-3.3-70B-Instruct (OpenRouter default routing), seed 42. Unlike the pinned main scorer, its calls were served by several providers, which may differ in quantization (table below).
-- **Split halves (no new calls):** every non-random explanation of all 200 main latents, scored on the two class-stratified halves of its 50 contexts used for H4's cross-fitting (seed 0). The halves share no contexts, so this adds the noise from which contexts were drawn. Each half has 25 contexts, so it is a lower bound on the agreement at 50.
+- **Split halves (no new calls):** every non-random explanation of all 200 main latents, scored on the two class-stratified halves of its 50 contexts used for H4's cross-fitting (seed 0). The halves share no contexts, so this adds the noise from which contexts were drawn. Each half has 25 contexts, so two independent 50-context scorings would likely agree more. The two halves were, however, scored in shared 5-context prompts, which may correlate their answers and push the agreement the other way.
 - Cost of both re-scorings: US$2.03 for 10040 calls.
 
 Providers that served each run, counted from the logs:
